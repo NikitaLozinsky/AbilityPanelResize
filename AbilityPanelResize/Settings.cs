@@ -2,23 +2,27 @@ using UnityModManagerNet;
 
 namespace AbilityPanelResize
 {
-    // Собственные настройки мода - НЕ часть сейва игры. Хранятся отдельным
-    // файлом Mods\AbilityPanelResize\Settings.xml (путь и сериализация -
-    // готовый механизм UnityModManager.ModSettings, XmlSerializer по
-    // умолчанию сериализует все public-поля). Это сознательно ГЛОБАЛЬНАЯ
-    // настройка - одна на всех персонажей/сейвы, не привязана к
-    // конкретному прохождению. Такое решение выбрано специально: размер
-    // окна не должен попадать в сериализацию самой игры, чтобы мод
-    // оставался безопасно удаляемым посреди игры без последствий для
-    // сейвов.
-    //
-    // -1 - сентинел "значение ещё ни разу не сохранялось" (например, самый
-    // первый запуск с этим модом, файла Settings.xml ещё не существует).
-    // В этом случае патчи используют своё текущее поведение по умолчанию,
-    // как будто настроек нет вообще.
     public class Settings : UnityModManager.ModSettings
     {
         public float Width = -1f;
         public float Height = -1f;
+
+        public bool RememberSize = true;
+        public bool CenterIcons = true;
+
+        public float DefaultHeight = 400f;
+        public float MaxWidth = 900f;
+        public float MaxHeight = 800f;
+
+        public float ScrollSensitivity = 20f;
+        public float HandleThickness = 16f;
+
+        public bool HasSavedSize => Width > 0f && Height > 0f;
+
+        public void ResetSize()
+        {
+            Width = -1f;
+            Height = -1f;
+        }
     }
 }

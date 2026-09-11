@@ -1,8 +1,11 @@
 {
   "Id": "AbilityPanelResize",
   "DisplayName": "Ability Panel Resize",
-  "Version": "0.0.4",
+  "Version": "0.1.0",
+  "ManagerVersion": "0.32.4",
   "Author": "DeCopiDoge1966",
+  "HomePage": "https://github.com/NikitaLozinsky/AbilityPanelResize",
+  "Repository": "https://raw.githubusercontent.com/NikitaLozinsky/AbilityPanelResize/main/Repository.json",
   "AssemblyName": "AbilityPanelResize.dll",
   "EntryMethod": "AbilityPanelResize.Main.Load",
   "Requirements": [],

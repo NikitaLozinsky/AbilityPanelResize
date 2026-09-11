@@ -1,0 +1,172 @@
+{
+  "LocalizedStrings": [
+    {
+      "Key": "AbilityPanelResize.Settings.Language",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.Language",
+      "ProcessTemplates": false,
+      "ruRU": "Язык интерфейса мода: {0} (следует за языком игры)",
+      "enGB": "Mod interface language: {0} (follows the game language)"
+    },
+    {
+      "Key": "AbilityPanelResize.Settings.Section.Size",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.Section.Size",
+      "ProcessTemplates": false,
+      "ruRU": "Размер панели",
+      "enGB": "Panel size"
+    },
+    {
+      "Key": "AbilityPanelResize.Settings.SavedSize",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.SavedSize",
+      "ProcessTemplates": false,
+      "ruRU": "Сохранённый размер панели: {0}",
+      "enGB": "Saved panel size: {0}"
+    },
+    {
+      "Key": "AbilityPanelResize.Settings.SavedSize.None",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.SavedSize.None",
+      "ProcessTemplates": false,
+      "ruRU": "не задан (используется размер по умолчанию)",
+      "enGB": "not set (default size is used)"
+    },
+    {
+      "Key": "AbilityPanelResize.Settings.RememberSize",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.RememberSize",
+      "ProcessTemplates": false,
+      "ruRU": "Запоминать размер панели между сессиями",
+      "enGB": "Remember panel size between sessions"
+    },
+    {
+      "Key": "AbilityPanelResize.Settings.Reset",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.Reset",
+      "ProcessTemplates": false,
+      "ruRU": "Сбросить размер к значениям по умолчанию",
+      "enGB": "Reset size to defaults"
+    },
+    {
+      "Key": "AbilityPanelResize.Settings.DefaultHeight",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.DefaultHeight",
+      "ProcessTemplates": false,
+      "ruRU": "Высота панели по умолчанию: {0} px",
+      "enGB": "Default panel height: {0} px"
+    },
+    {
+      "Key": "AbilityPanelResize.Settings.Section.Limits",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.Section.Limits",
+      "ProcessTemplates": false,
+      "ruRU": "Границы размера",
+      "enGB": "Size limits"
+    },
+    {
+      "Key": "AbilityPanelResize.Settings.MaxWidth",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.MaxWidth",
+      "ProcessTemplates": false,
+      "ruRU": "Максимальная ширина: {0} px",
+      "enGB": "Maximum width: {0} px"
+    },
+    {
+      "Key": "AbilityPanelResize.Settings.MaxHeight",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.MaxHeight",
+      "ProcessTemplates": false,
+      "ruRU": "Максимальная высота: {0} px",
+      "enGB": "Maximum height: {0} px"
+    },
+    {
+      "Key": "AbilityPanelResize.Settings.LimitsHint",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.LimitsHint",
+      "ProcessTemplates": false,
+      "ruRU": "Подними эти значения, если на большом экране панель перестаёт растягиваться раньше, чем хотелось бы.",
+      "enGB": "Raise these if the panel will not stretch far enough on a large screen."
+    },
+    {
+      "Key": "AbilityPanelResize.Settings.Section.Behaviour",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.Section.Behaviour",
+      "ProcessTemplates": false,
+      "ruRU": "Поведение",
+      "enGB": "Behaviour"
+    },
+    {
+      "Key": "AbilityPanelResize.Settings.CenterIcons",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.CenterIcons",
+      "ProcessTemplates": false,
+      "ruRU": "Центрировать иконки по горизонтали",
+      "enGB": "Centre icons horizontally"
+    },
+    {
+      "Key": "AbilityPanelResize.Settings.CenterIconsHint",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.CenterIconsHint",
+      "ProcessTemplates": false,
+      "ruRU": "Делит незанятую ширину поровну, вместо того чтобы отдавать её всю вправо.",
+      "enGB": "Splits the leftover width evenly instead of dumping it all on the right."
+    },
+    {
+      "Key": "AbilityPanelResize.Settings.ScrollSensitivity",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.ScrollSensitivity",
+      "ProcessTemplates": false,
+      "ruRU": "Скорость прокрутки колесом: {0}",
+      "enGB": "Mouse wheel scroll speed: {0}"
+    },
+    {
+      "Key": "AbilityPanelResize.Settings.HandleThickness",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.HandleThickness",
+      "ProcessTemplates": false,
+      "ruRU": "Толщина зоны захвата края: {0} px",
+      "enGB": "Edge grab zone thickness: {0} px"
+    },
+    {
+      "Key": "AbilityPanelResize.Settings.HandleThicknessHint",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.HandleThicknessHint",
+      "ProcessTemplates": false,
+      "ruRU": "Насколько далеко за границу панели выступает зона, за которую её можно тянуть.",
+      "enGB": "How far outside the panel border the resize grip reaches."
+    },
+    {
+      "Key": "AbilityPanelResize.Settings.ApplyHint",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.ApplyHint",
+      "ProcessTemplates": false,
+      "ruRU": "Большинство изменений применяется сразу. Высота по умолчанию — при следующем построении панели, например после перезахода на локацию.",
+      "enGB": "Most changes apply immediately. Default height applies when the panel is next built, for example after reloading a location."
+    },
+    {
+      "Key": "AbilityPanelResize.Log.Loaded",
+      "SimpleName": "AbilityPanelResize.Log.Loaded",
+      "ProcessTemplates": false,
+      "ruRU": "Мод AbilityPanelResize загружен.",
+      "enGB": "AbilityPanelResize loaded."
+    },
+    {
+      "Key": "AbilityPanelResize.Log.Enabled",
+      "SimpleName": "AbilityPanelResize.Log.Enabled",
+      "ProcessTemplates": false,
+      "ruRU": "Мод активирован, патчи Harmony применены.",
+      "enGB": "Mod enabled, Harmony patches applied."
+    },
+    {
+      "Key": "AbilityPanelResize.Log.Disabled",
+      "SimpleName": "AbilityPanelResize.Log.Disabled",
+      "ProcessTemplates": false,
+      "ruRU": "Мод деактивирован, патчи Harmony сняты.",
+      "enGB": "Mod disabled, Harmony patches removed."
+    },
+    {
+      "Key": "AbilityPanelResize.Log.ScrollAdded",
+      "SimpleName": "AbilityPanelResize.Log.ScrollAdded",
+      "ProcessTemplates": false,
+      "ruRU": "Обёртка ScrollRect добавлена на панель способностей.",
+      "enGB": "ScrollRect wrapper added to the ability panel."
+    },
+    {
+      "Key": "AbilityPanelResize.Log.HandlesAdded",
+      "SimpleName": "AbilityPanelResize.Log.HandlesAdded",
+      "ProcessTemplates": false,
+      "ruRU": "Хендлы ручного ресайза добавлены.",
+      "enGB": "Manual resize handles added."
+    },
+    {
+      "Key": "AbilityPanelResize.Log.GridPadding",
+      "SimpleName": "AbilityPanelResize.Log.GridPadding",
+      "ProcessTemplates": false,
+      "ruRU": "Отступы сетки left={0}, right={1} (для точной центровки должны совпадать).",
+      "enGB": "Grid padding left={0}, right={1} (they must match for centring to be exact)."
+    }
+  ]
+}

@@ -75,6 +75,13 @@
             <HintPath>$(WOTR_PATH)\Wrath_Data\Managed\UnityEngine.IMGUIModule.dll</HintPath>
             <Private>False</Private>
         </Reference>
+
+        <!-- Разбор Localization.json. Берём ту копию, что уже грузит сама игра,
+             чтобы не тащить в папку мода вторую версию той же библиотеки. -->
+        <Reference Include="Newtonsoft.Json">
+            <HintPath>$(WOTR_PATH)\Wrath_Data\Managed\Newtonsoft.Json.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
     </ItemGroup>
 
     <Target Name="DeployMod" AfterTargets="Build">
@@ -89,6 +96,8 @@
         <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="$(ModFolder)" />
 
         <Copy SourceFiles="Info.json" DestinationFolder="$(ModFolder)" />
+
+        <Copy SourceFiles="Localization.json" DestinationFolder="$(ModFolder)" />
 
         <Message Importance="High" Text="Мод успешно скопирован и готов к запуску!" />
     </Target>

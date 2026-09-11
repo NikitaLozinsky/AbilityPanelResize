@@ -1,97 +1,174 @@
-using System;
 using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
 using UnityModManagerNet;
-//using UnityModManager = UnityModManagerNet.UnityModManager;
 
 namespace AbilityPanelResize
 {
     public static class Main
     {
-        // Хранилище для логгера, чтобы вызывать его из любого места нашего мода
         public static UnityModManager.ModEntry.ModLogger Logger;
-        public static bool Enabled;
-
-        // Нужен дальше, чтобы вызывать Settings.Save(ModEntry) из любого
-        // места (например, из ResizeElementAdapter.EndResize) без протаскивания
-        // ссылки через конструкторы MonoBehaviour-компонентов.
         public static UnityModManager.ModEntry ModEntry;
-
-        // Наши собственные настройки (размер панели) - отдельно от сейва игры,
-        // см. комментарий в Settings.cs.
         public static Settings Settings;
+        public static bool Enabled;
 
         private static Harmony s_Harmony;
 
-        // Точка входа, которую UMM найдет по нашей инструкции из Info.json
         public static bool Load(UnityModManager.ModEntry modEntry)
         {
-            // Инициализируем логгер префиксом нашего мода
             Logger = modEntry.Logger;
             ModEntry = modEntry;
 
-            // Грузим настройки сразу при загрузке мода (не при первом
-            // Initialize панели) - если файла ещё нет, Load<T> вернёт объект
-            // со значениями по умолчанию (-1/-1), это не ошибка.
             Settings = UnityModManager.ModSettings.Load<Settings>(modEntry);
+            Localization.Load(modEntry.Path);
 
-            // Привязываем событие переключения ползунка Вкл/Выкл в меню UMM (Ctrl+F10)
             modEntry.OnToggle = OnToggle;
-
-            // Рисует вкладку настроек мода в том же окне UMM (Ctrl+F10) -
-            // кнопка сброса сохранённого размера панели к значениям по
-            // умолчанию.
             modEntry.OnGUI = OnGUI;
+            modEntry.OnSaveGUI = OnSaveGUI;
 
-            Logger.Log("Привет, Мир! Мод AbilityPanelResize успешно запущен!");
+            Logger.Log(Localization.Get("AbilityPanelResize.Log.Loaded"));
             return true;
         }
 
-        private static void OnGUI(UnityModManager.ModEntry modEntry)
-        {
-            string current = Settings.Width > 0f && Settings.Height > 0f
-                ? $"{Settings.Width:0}x{Settings.Height:0}"
-                : "не задан (используется размер по умолчанию)";
-            GUILayout.Label("Сохранённый размер панели способностей: " + current);
-
-            if (GUILayout.Button("Сбросить размер к значениям по умолчанию"))
-            {
-                Settings.Width = -1f;
-                Settings.Height = -1f;
-                Settings.Save(modEntry);
-            }
-
-            GUILayout.Label("Изменение применится при следующем построении панели " +
-                             "(например, при перезаходе на локацию).");
-        }
-
-        // Логика, которая срабатывает, когда игрок включает или выключает мод в меню
         public static bool OnToggle(UnityModManager.ModEntry modEntry, bool value)
         {
-            // Защита: если состояние не изменилось, ничего не делаем
-            if (Enabled == value) return true;
+            if (Enabled == value)
+            {
+                return true;
+            }
 
             Enabled = value;
 
             if (Enabled)
             {
-                // PatchAll сканирует текущую сборку и сам находит все классы
-                // с атрибутом [HarmonyPatch] - вручную перечислять патчи не нужно.
                 if (s_Harmony == null)
                 {
                     s_Harmony = new Harmony(modEntry.Info.Id);
                 }
+
                 s_Harmony.PatchAll(Assembly.GetExecutingAssembly());
-                Logger.Log("Мод активирован, патчи Harmony применены.");
+                Logger.Log(Localization.Get("AbilityPanelResize.Log.Enabled"));
             }
             else
             {
                 s_Harmony?.UnpatchAll(modEntry.Info.Id);
-                Logger.Log("Мод деактивирован, патчи Harmony сняты.");
+                Logger.Log(Localization.Get("AbilityPanelResize.Log.Disabled"));
             }
 
             return true;
+        }
+
+        private static void OnGUI(UnityModManager.ModEntry modEntry)
+        {
+            if (Settings == null)
+            {
+                return;
+            }
+
+            Localization.RefreshLocale();
+
+            GUILayout.Label(Localization.Get("AbilityPanelResize.Settings.Language", Localization.CurrentLocale));
+            GUILayout.Space(8f);
+
+            Section("AbilityPanelResize.Settings.Section.Size");
+
+            string savedSize = Settings.HasSavedSize
+                ? $"{Settings.Width:0}x{Settings.Height:0}"
+                : Localization.Get("AbilityPanelResize.Settings.SavedSize.None");
+            GUILayout.Label(Localization.Get("AbilityPanelResize.Settings.SavedSize", savedSize));
+
+            Settings.RememberSize = GUILayout.Toggle(Settings.RememberSize, Localization.Get("AbilityPanelResize.Settings.RememberSize"));
+
+            if (GUILayout.Button(Localization.Get("AbilityPanelResize.Settings.Reset"), GUILayout.Width(360f)))
+            {
+                Settings.ResetSize();
+                Settings.Save(modEntry);
+            }
+
+            Settings.DefaultHeight = Slider("AbilityPanelResize.Settings.DefaultHeight", Settings.DefaultHeight,
+                ResizeLimits.MinSize.y, ResizeLimits.MaxHeightCeiling, 10f);
+
+            GUILayout.Space(8f);
+            Section("AbilityPanelResize.Settings.Section.Limits");
+
+            float maxWidth = Slider("AbilityPanelResize.Settings.MaxWidth", Settings.MaxWidth,
+                ResizeLimits.MinSize.x, ResizeLimits.MaxWidthCeiling, 10f);
+            float maxHeight = Slider("AbilityPanelResize.Settings.MaxHeight", Settings.MaxHeight,
+                ResizeLimits.MinSize.y, ResizeLimits.MaxHeightCeiling, 10f);
+            Hint("AbilityPanelResize.Settings.LimitsHint");
+
+            GUILayout.Space(8f);
+            Section("AbilityPanelResize.Settings.Section.Behaviour");
+
+            bool centerIcons = GUILayout.Toggle(Settings.CenterIcons, Localization.Get("AbilityPanelResize.Settings.CenterIcons"));
+            Hint("AbilityPanelResize.Settings.CenterIconsHint");
+
+            float scrollSensitivity = Slider("AbilityPanelResize.Settings.ScrollSensitivity", Settings.ScrollSensitivity, 5f, 80f, 1f);
+            float handleThickness = Slider("AbilityPanelResize.Settings.HandleThickness", Settings.HandleThickness, 6f, 40f, 1f);
+            Hint("AbilityPanelResize.Settings.HandleThicknessHint");
+
+            GUILayout.Space(8f);
+            Hint("AbilityPanelResize.Settings.ApplyHint");
+
+            bool changed =
+                !Mathf.Approximately(maxWidth, Settings.MaxWidth) ||
+                !Mathf.Approximately(maxHeight, Settings.MaxHeight) ||
+                !Mathf.Approximately(scrollSensitivity, Settings.ScrollSensitivity) ||
+                !Mathf.Approximately(handleThickness, Settings.HandleThickness) ||
+                centerIcons != Settings.CenterIcons;
+
+            Settings.MaxWidth = maxWidth;
+            Settings.MaxHeight = maxHeight;
+            Settings.ScrollSensitivity = scrollSensitivity;
+            Settings.HandleThickness = handleThickness;
+            Settings.CenterIcons = centerIcons;
+
+            if (changed)
+            {
+                ApplyLiveSettings();
+            }
+        }
+
+        private static void OnSaveGUI(UnityModManager.ModEntry modEntry)
+        {
+            Settings?.Save(modEntry);
+        }
+
+        public static void ApplyLiveSettings()
+        {
+            if (Settings == null)
+            {
+                return;
+            }
+
+            foreach (PanelResizeHandle handle in Object.FindObjectsOfType<PanelResizeHandle>())
+            {
+                handle.ApplyThickness(Settings.HandleThickness);
+            }
+
+            foreach (ResizeElementAdapter adapter in Object.FindObjectsOfType<ResizeElementAdapter>())
+            {
+                adapter.ApplyLiveSettings();
+            }
+        }
+
+        private static void Section(string key)
+        {
+            GUILayout.Label($"<b>{Localization.Get(key)}</b>");
+        }
+
+        private static void Hint(string key)
+        {
+            GUILayout.Label($"<i>{Localization.Get(key)}</i>");
+        }
+
+        private static float Slider(string labelKey, float value, float min, float max, float step)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(Localization.Get(labelKey, value.ToString("0")), GUILayout.Width(360f));
+            float result = GUILayout.HorizontalSlider(value, min, max, GUILayout.Width(300f));
+            GUILayout.EndHorizontal();
+            return Mathf.Round(result / step) * step;
         }
     }
 }

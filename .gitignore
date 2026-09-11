@@ -11,3 +11,9 @@ CLAUDE.md
 [Oo]bj/
 *.user
 *.userprefs
+
+CLAUDE.md
+.claude/
+bin/
+obj/
+.idea/
