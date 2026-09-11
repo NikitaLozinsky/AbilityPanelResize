@@ -1,0 +1,10 @@
+{
+  "Id": "AbilityPanelResize",
+  "DisplayName": "Ability Panel Resize",
+  "Version": "0.0.4",
+  "Author": "DeCopiDoge1966",
+  "AssemblyName": "AbilityPanelResize.dll",
+  "EntryMethod": "AbilityPanelResize.Main.Load",
+  "Requirements": [],
+  "LoadAfter": []
+}

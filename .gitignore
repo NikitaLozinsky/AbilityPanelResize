@@ -1,0 +1,13 @@
+# Rider / JetBrains
+.idea/
+*.sln.doc/
+
+# Claude config
+.claude/
+CLAUDE.md
+
+# Build output
+[Bb]in/
+[Oo]bj/
+*.user
+*.userprefs
