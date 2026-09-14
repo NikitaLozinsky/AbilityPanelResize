@@ -1,6 +1,5 @@
+using System.Collections.Generic;
 using HarmonyLib;
-using Kingmaker;
-using Kingmaker.Blueprints.Root;
 using Kingmaker.UI;
 using Kingmaker.UI.Log;
 using Kingmaker.UI.MVVM._PCView.ActionBar;
@@ -16,6 +15,9 @@ namespace AbilityPanelResize
         private Traverse m_GroupViewTraverse;
         private ScrollRect m_ScrollRect;
         private GridLayoutGroup m_Grid;
+
+        private readonly List<GameObject> m_Handles = new List<GameObject>();
+        private string m_CurrentCharacterId;
 
         private float? m_InitialCenterX;
 
@@ -85,7 +87,57 @@ namespace AbilityPanelResize
             Vector2 size = Rect.sizeDelta;
             settings.Width = size.x;
             settings.Height = size.y;
+            if (m_CurrentCharacterId != null)
+            {
+                settings.SetCharacterSize(m_CurrentCharacterId, size);
+            }
+
             settings.Save(Main.ModEntry);
+        }
+
+        public void RegisterHandle(GameObject handle)
+        {
+            handle.SetActive(false);
+            m_Handles.Add(handle);
+        }
+
+        public void SetHandlesActive(bool active)
+        {
+            foreach (GameObject handle in m_Handles)
+            {
+                if (handle != null)
+                {
+                    handle.SetActive(active);
+                }
+            }
+        }
+
+        public void ApplyCharacterSize(string characterId)
+        {
+            if (characterId == m_CurrentCharacterId)
+            {
+                return;
+            }
+
+            m_CurrentCharacterId = characterId;
+
+            Settings settings = Main.Settings;
+            if (settings == null || !settings.RememberSize)
+            {
+                return;
+            }
+
+            if (!settings.TryGetCharacterSize(characterId, out Vector2 size))
+            {
+                if (!settings.HasSavedSize)
+                {
+                    return;
+                }
+
+                size = new Vector2(settings.Width, settings.Height);
+            }
+
+            SetSizeDelta(ResizeLimits.Clamp(size));
         }
 
         public void SetSizeDelta(Vector2 size)
@@ -117,11 +169,10 @@ namespace AbilityPanelResize
 
         private void Update()
         {
-            if (Input.GetMouseButtonUp(0) && CursorController.IsResizeCursor && Game.Instance != null)
+            if (Input.GetMouseButtonUp(0) && CursorController.IsResizeCursor)
             {
                 CursorController.IsResizeCursor = false;
-                Game.Instance.CursorController.ClearCursor();
-                Game.Instance.CursorController.SetCustomCursor(CursorRoot.CursorType.None, Vector2.zero);
+                UnityEngine.Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
             }
         }
 

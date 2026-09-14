@@ -108,6 +108,8 @@ namespace AbilityPanelResize
             handle.ThicknessDirMin = thicknessDirMin;
             handle.ThicknessDirMax = thicknessDirMax;
             handle.ApplyThickness(Main.Settings != null ? Main.Settings.HandleThickness : 16f);
+
+            adapter.RegisterHandle(handleGO);
         }
     }
 }

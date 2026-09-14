@@ -1,4 +1,3 @@
-using Kingmaker;
 using Kingmaker.Blueprints.Root;
 using Kingmaker.UI;
 using UnityEngine;
@@ -100,8 +99,9 @@ namespace AbilityPanelResize
         {
             if (!CursorController.IsResizeCursor)
             {
-                Game.Instance.CursorController.SetCustomCursor(CursorType, new Vector2(32f, 32f));
                 CursorController.IsResizeCursor = true;
+                Texture2D texture = BlueprintRoot.Instance.Cursors.GetCursorTexture(CursorType);
+                UnityEngine.Cursor.SetCursor(texture, new Vector2(32f, 32f), CursorMode.Auto);
             }
         }
 
@@ -110,8 +110,7 @@ namespace AbilityPanelResize
             if (CursorController.IsResizeCursor)
             {
                 CursorController.IsResizeCursor = false;
-                Game.Instance.CursorController.ClearCursor();
-                Game.Instance.CursorController.SetCustomCursor(CursorRoot.CursorType.None, Vector2.zero);
+                UnityEngine.Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
             }
         }
     }
