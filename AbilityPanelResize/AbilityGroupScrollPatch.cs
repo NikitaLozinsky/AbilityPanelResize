@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using HarmonyLib;
+using Kingmaker;
+using Kingmaker.EntitySystem.Entities;
 using Kingmaker.UI;
 using Kingmaker.UI.Common;
 using Kingmaker.UI.MVVM._PCView.ActionBar;
@@ -102,14 +104,26 @@ namespace AbilityPanelResize
             }
 
             float nativeWidth = root.sizeDelta.x;
-            bool useSavedSize = settings != null && settings.RememberSize && settings.HasSavedSize;
             float defaultHeight = settings != null ? settings.DefaultHeight : 400f;
 
+            Vector2? characterSize = null;
+            if (settings != null && settings.RememberSize)
+            {
+                UnitEntityData currentUnit = Game.Instance?.SelectionCharacter?.CurrentSelectedCharacter;
+                if (currentUnit != null && settings.TryGetCharacterSize(currentUnit.UniqueId, out Vector2 savedSize))
+                {
+                    characterSize = savedSize;
+                }
+            }
+
+            bool useSavedSize = settings != null && settings.RememberSize
+                && (characterSize.HasValue || settings.HasSavedSize);
+
             float initialWidth = useSavedSize
-                ? Mathf.Clamp(settings.Width, ResizeLimits.MinSize.x, ResizeLimits.MaxSize.x)
+                ? Mathf.Clamp(characterSize?.x ?? settings.Width, ResizeLimits.MinSize.x, ResizeLimits.MaxSize.x)
                 : nativeWidth;
             float initialHeight = useSavedSize
-                ? Mathf.Clamp(settings.Height, ResizeLimits.MinSize.y, ResizeLimits.MaxSize.y)
+                ? Mathf.Clamp(characterSize?.y ?? settings.Height, ResizeLimits.MinSize.y, ResizeLimits.MaxSize.y)
                 : Mathf.Clamp(defaultHeight, ResizeLimits.MinSize.y, ResizeLimits.MaxSize.y);
 
             if (!Mathf.Approximately(initialWidth, nativeWidth))

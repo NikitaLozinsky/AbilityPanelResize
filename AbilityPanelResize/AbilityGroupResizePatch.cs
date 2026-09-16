@@ -1,5 +1,7 @@
 using HarmonyLib;
+using Kingmaker;
 using Kingmaker.Blueprints.Root;
+using Kingmaker.EntitySystem.Entities;
 using Kingmaker.UI.MVVM._PCView.ActionBar;
 using Kingmaker.UI.MVVM._VM.ActionBar;
 using UnityEngine;
@@ -65,6 +67,12 @@ namespace AbilityPanelResize
                 baseOffsetMin: Vector2.zero, thicknessDirMin: Vector2.zero,
                 baseOffsetMax: Vector2.zero, thicknessDirMax: new Vector2(1f, 1f),
                 xSign: 1f, ySign: 1f, CursorRoot.CursorType.ArrowDiagonally01Cursor);
+
+            UnitEntityData currentUnit = Game.Instance?.SelectionCharacter?.CurrentSelectedCharacter;
+            if (currentUnit != null)
+            {
+                adapter.SeedCharacterId(currentUnit.UniqueId);
+            }
 
             Main.Logger.Log(Localization.Get("AbilityPanelResize.Log.HandlesAdded"));
         }

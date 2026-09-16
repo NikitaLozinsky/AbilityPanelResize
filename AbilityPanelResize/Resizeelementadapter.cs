@@ -112,6 +112,14 @@ namespace AbilityPanelResize
             }
         }
 
+        public void SeedCharacterId(string characterId)
+        {
+            if (m_CurrentCharacterId == null)
+            {
+                m_CurrentCharacterId = characterId;
+            }
+        }
+
         public void ApplyCharacterSize(string characterId)
         {
             if (characterId == m_CurrentCharacterId)

@@ -1,26 +1,37 @@
 using HarmonyLib;
 using Kingmaker.EntitySystem.Entities;
+using Kingmaker.UI.MVVM._PCView.ActionBar;
 using Kingmaker.UI.MVVM._VM.ActionBar;
 using UnityEngine;
 
 namespace AbilityPanelResize
 {
-    [HarmonyPatch(typeof(ActionBarVM), "OnUnitChanged")]
-    public static class ActionBarVM_OnUnitChanged_Patch
+    [HarmonyPatch(typeof(ActionBarGroupPCView), "SetGroup")]
+    public static class ActionBarGroupPCView_SetGroup_Patch
     {
-        private static string s_LastCharacterId;
-
         [HarmonyPostfix]
-        public static void Postfix(UnitEntityData unit)
+        public static void Postfix(ActionBarGroupPCView __instance)
         {
-            if (unit == null || unit.UniqueId == s_LastCharacterId)
+            var traverse = Traverse.Create(__instance);
+            if (traverse.Field("m_GroupType").GetValue<ActionBarGroupType>() != ActionBarGroupType.Ability)
             {
                 return;
             }
 
-            s_LastCharacterId = unit.UniqueId;
+            RectTransform root = __instance.transform as RectTransform;
+            if (root == null || root.Find(ModNames.Viewport) == null)
+            {
+                return;
+            }
 
-            ResizeElementAdapter adapter = Object.FindObjectOfType<ResizeElementAdapter>();
+            ActionBarVM viewModel = traverse.Property("ViewModel").GetValue<ActionBarVM>();
+            UnitEntityData unit = viewModel?.SelectedUnit.Value;
+            if (unit == null)
+            {
+                return;
+            }
+
+            ResizeElementAdapter adapter = root.GetComponent<ResizeElementAdapter>();
             adapter?.ApplyCharacterSize(unit.UniqueId);
         }
     }

@@ -82,6 +82,12 @@
             <HintPath>$(WOTR_PATH)\Wrath_Data\Managed\Newtonsoft.Json.dll</HintPath>
             <Private>False</Private>
         </Reference>
+
+        <!-- ReactiveProperty<T> (ActionBarVM.SelectedUnit) -->
+        <Reference Include="UniRx">
+            <HintPath>$(WOTR_PATH)\Wrath_Data\Managed\UniRx.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
     </ItemGroup>
 
     <Target Name="DeployMod" AfterTargets="Build">
