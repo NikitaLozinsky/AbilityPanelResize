@@ -3,6 +3,8 @@
 [![Nexus Mods](https://img.shields.io/badge/Nexus%20Mods-Download-blue?style=for-the-badge&logo=nexusmods)](https://www.nexusmods.com/pathfinderwrathoftherighteous/mods/1169?tab=description)
 [![Game](https://img.shields.io/badge/Game-Pathfinder%3A%20WotR-red?style=for-the-badge)](https://store.steampowered.com/app/1184370/Pathfinder_Wrath_of_the_Righteous__Enhanced_Edition/)
 
+![Превью AbilityPanelResize](https://raw.githubusercontent.com/NikitaLozinsky/AbilityPanelResize/main/AbilityPanelResize/Assets/prev.jpg)
+
 ---
 
 ## 🇬🇧 English
