@@ -103,9 +103,18 @@ namespace AbilityPanelResize
             bool centerIcons = GUILayout.Toggle(Settings.CenterIcons, Localization.Get("AbilityPanelResize.Settings.CenterIcons"));
             Hint("AbilityPanelResize.Settings.CenterIconsHint");
 
+            bool stencilMask = GUILayout.Toggle(Settings.StencilMask, Localization.Get("AbilityPanelResize.Settings.StencilMask"));
+            Hint("AbilityPanelResize.Settings.StencilMaskHint");
+
             float scrollSensitivity = Slider("AbilityPanelResize.Settings.ScrollSensitivity", Settings.ScrollSensitivity, 5f, 80f, 1f);
             float handleThickness = Slider("AbilityPanelResize.Settings.HandleThickness", Settings.HandleThickness, 6f, 40f, 1f);
             Hint("AbilityPanelResize.Settings.HandleThicknessHint");
+
+            GUILayout.Space(8f);
+            Section("AbilityPanelResize.Settings.Section.Diagnostics");
+            Settings.Diagnostics = GUILayout.Toggle(Settings.Diagnostics,
+                Localization.Get("AbilityPanelResize.Settings.Diagnostics"));
+            Hint("AbilityPanelResize.Settings.DiagnosticsHint");
 
             GUILayout.Space(8f);
             Hint("AbilityPanelResize.Settings.ApplyHint");
@@ -115,13 +124,15 @@ namespace AbilityPanelResize
                 !Mathf.Approximately(maxHeight, Settings.MaxHeight) ||
                 !Mathf.Approximately(scrollSensitivity, Settings.ScrollSensitivity) ||
                 !Mathf.Approximately(handleThickness, Settings.HandleThickness) ||
-                centerIcons != Settings.CenterIcons;
+                centerIcons != Settings.CenterIcons ||
+                stencilMask != Settings.StencilMask;
 
             Settings.MaxWidth = maxWidth;
             Settings.MaxHeight = maxHeight;
             Settings.ScrollSensitivity = scrollSensitivity;
             Settings.HandleThickness = handleThickness;
             Settings.CenterIcons = centerIcons;
+            Settings.StencilMask = stencilMask;
 
             if (changed)
             {
@@ -141,15 +152,10 @@ namespace AbilityPanelResize
                 return;
             }
 
-            foreach (PanelResizeHandle handle in Object.FindObjectsOfType<PanelResizeHandle>())
-            {
-                handle.ApplyThickness(Settings.HandleThickness);
-            }
-
-            foreach (ResizeElementAdapter adapter in Object.FindObjectsOfType<ResizeElementAdapter>())
-            {
-                adapter.ApplyLiveSettings();
-            }
+            // Через реестр адаптеров, а не FindObjectsOfType: тот не видит
+            // выключенные объекты, а свёрнутая или пустая панель как раз
+            // выключена — настройки до неё просто не доезжали.
+            ResizeElementAdapter.ApplyLiveSettingsToAll();
         }
 
         private static void Section(string key)

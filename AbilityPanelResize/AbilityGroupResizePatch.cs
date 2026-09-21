@@ -32,11 +32,7 @@ namespace AbilityPanelResize
 
             RectTransform stableReference = root.parent as RectTransform ?? root;
 
-            ResizeElementAdapter adapter = root.GetComponent<ResizeElementAdapter>();
-            if (adapter == null)
-            {
-                adapter = root.gameObject.AddComponent<ResizeElementAdapter>();
-            }
+            ResizeElementAdapter adapter = ResizeElementAdapter.Ensure(root.gameObject);
 
             CreateHandle(root, adapter, stableReference, ModNames.ResizeRight,
                 anchorMin: new Vector2(1f, 0f), anchorMax: new Vector2(1f, 1f),
@@ -117,7 +113,7 @@ namespace AbilityPanelResize
             handle.ThicknessDirMax = thicknessDirMax;
             handle.ApplyThickness(Main.Settings != null ? Main.Settings.HandleThickness : 16f);
 
-            adapter.RegisterHandle(handleGO);
+            adapter.RegisterHandle(handle);
         }
     }
 }

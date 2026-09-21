@@ -19,6 +19,14 @@ namespace AbilityPanelResize
         public bool RememberSize = true;
         public bool CenterIcons = true;
 
+        /// Трафаретная обрезка иконок по краю окна. Выключается на лету —
+        /// страховка на случай, если на чужом железе/драйвере она подведёт.
+        public bool StencilMask = true;
+
+        /// Дамп геометрии панели в лог (сам при прокрутке под шапку и по
+        /// Ctrl+Alt+D). Отладочное, по умолчанию выключено.
+        public bool Diagnostics;
+
         public float DefaultHeight = 400f;
         public float MaxWidth = 900f;
         public float MaxHeight = 800f;

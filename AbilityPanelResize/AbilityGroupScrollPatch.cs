@@ -29,18 +29,20 @@ namespace AbilityPanelResize
             }
 
             Settings settings = Main.Settings;
-            var traverse = Traverse.Create(__instance);
-
-            List<ActionBarBaseSlotPCView> slotsList =
-                traverse.Field("m_SlotsList").GetValue<List<ActionBarBaseSlotPCView>>();
+            List<ActionBarBaseSlotPCView> slotsList = ActionBarGroupAccess.GetSlots(__instance);
 
             GridLayoutGroupWorkaround originalGrid = root.GetComponent<GridLayoutGroupWorkaround>();
             ContentSizeFitterExtended originalFitter = root.GetComponent<ContentSizeFitterExtended>();
 
-            RectTransform headerRect = root.Find(ModNames.HeaderPath) as RectTransform;
+            RectTransform headerRect = FindHeader(root, __instance, out string headerSource);
             float headerHeight = headerRect != null
                 ? headerRect.rect.height
                 : (originalGrid != null ? originalGrid.padding.top : 0f);
+
+            if (headerRect == null)
+            {
+                Main.Logger.Warning(Localization.Get("AbilityPanelResize.Log.HeaderNotFound", headerHeight.ToString("0.#")));
+            }
 
             var viewportGO = new GameObject(ModNames.Viewport, typeof(RectTransform));
             RectTransform viewportRect = viewportGO.GetComponent<RectTransform>();
@@ -50,6 +52,7 @@ namespace AbilityPanelResize
             viewportRect.offsetMin = Vector2.zero;
             viewportRect.offsetMax = new Vector2(0f, -headerHeight);
             viewportGO.AddComponent<RectMask2D>();
+            ViewportMask.Apply(viewportGO);
 
             var contentGO = new GameObject(ModNames.Content, typeof(RectTransform));
             RectTransform contentRect = contentGO.GetComponent<RectTransform>();
@@ -63,11 +66,7 @@ namespace AbilityPanelResize
             foreach (ActionBarBaseSlotPCView slot in slotsList)
             {
                 slot.transform.SetParent(contentRect, worldPositionStays: false);
-
-                foreach (MaskableGraphic graphic in slot.GetComponentsInChildren<MaskableGraphic>(includeInactive: true))
-                {
-                    graphic.RecalculateClipping();
-                }
+                SlotClipping.Enable(slot.transform);
             }
 
             GridLayoutGroupWorkaround newGrid = contentGO.AddComponent<GridLayoutGroupWorkaround>();
@@ -92,11 +91,13 @@ namespace AbilityPanelResize
                 ? TextAnchor.UpperLeft
                 : TextAnchor.UpperCenter;
 
+            // Режимы подгонки у этого компонента защищённые, публичных свойств
+            // нет - только рефлексия. Traverse здесь допустим: строится панель
+            // один раз, в отличие от мест, которые работают на каждом кадре.
             ContentSizeFitterExtended newFitter = contentGO.AddComponent<ContentSizeFitterExtended>();
-            Traverse.Create(newFitter).Field("m_HorizontalFit")
-                .SetValue(ContentSizeFitterExtended.FitMode.Unconstrained);
-            Traverse.Create(newFitter).Field("m_VerticalFit")
-                .SetValue(ContentSizeFitterExtended.FitMode.PreferredSize);
+            Traverse fitter = Traverse.Create(newFitter);
+            fitter.Field("m_HorizontalFit").SetValue(ContentSizeFitterExtended.FitMode.Unconstrained);
+            fitter.Field("m_VerticalFit").SetValue(ContentSizeFitterExtended.FitMode.PreferredSize);
 
             if (originalFitter != null)
             {
@@ -144,7 +145,30 @@ namespace AbilityPanelResize
             scrollRect.movementType = ScrollRect.MovementType.Clamped;
             scrollRect.scrollSensitivity = settings != null ? settings.ScrollSensitivity : 20f;
 
-            traverse.Field("m_SlotContainer").SetValue(contentRect);
+            ResizeElementAdapter adapter = ResizeElementAdapter.Ensure(root.gameObject);
+
+            RectTransform scrollbarHolder =
+                AbilityScrollbar.Attach(root, scrollRect, headerHeight, adapter, out float reservedWidth);
+
+            // Один замер высоты заголовка ненадёжен (см. HeaderInsetTracker) —
+            // дальше верхней кромкой области прокрутки заведует трекер.
+            var headerTracker = root.gameObject.AddComponent<HeaderInsetTracker>();
+            headerTracker.Root = root;
+            headerTracker.Header = headerRect;
+            headerTracker.Viewport = viewportRect;
+            headerTracker.ScrollbarHolder = scrollbarHolder;
+            headerTracker.ViewportRightOffset = -reservedWidth;
+            headerTracker.ScrollbarRightOffset = -AbilityScrollbar.RightInset;
+            headerTracker.Apply(headerHeight);
+
+            var diagnostics = root.gameObject.AddComponent<AbilityPanelDiagnostics>();
+            diagnostics.Root = root;
+            diagnostics.Viewport = viewportRect;
+            diagnostics.Content = contentRect;
+            diagnostics.Tracker = headerTracker;
+            diagnostics.HeaderSource = headerSource;
+
+            ActionBarGroupAccess.SetSlotContainer(__instance, contentRect);
 
             Image backgroundImage = root.Find(ModNames.Background)?.GetComponent<Image>();
             if (backgroundImage != null)
@@ -159,6 +183,39 @@ namespace AbilityPanelResize
             }
 
             Main.Logger.Log(Localization.Get("AbilityPanelResize.Log.ScrollAdded"));
+        }
+
+        /// <summary>
+        /// Ищет прямоугольник шапки окна. Путь "Background/Header" — только
+        /// первая попытка: если разметка окажется другой, честнее взять родителя
+        /// текста заголовка, на который у самой вьюхи есть прямая ссылка.
+        /// </summary>
+        private static RectTransform FindHeader(RectTransform root, ActionBarGroupPCView view, out string source)
+        {
+            if (root.Find(ModNames.HeaderPath) is RectTransform byPath)
+            {
+                source = "path:" + ModNames.HeaderPath;
+                return byPath;
+            }
+
+            Component label = ActionBarGroupAccess.GetGroupNameLabel(view);
+            if (label != null && label.transform.parent is RectTransform labelParent)
+            {
+                source = "labelParent:" + labelParent.name;
+                return labelParent;
+            }
+
+            foreach (RectTransform child in root.GetComponentsInChildren<RectTransform>(includeInactive: true))
+            {
+                if (child != root && child.name == ModNames.Header)
+                {
+                    source = "byName:" + child.name;
+                    return child;
+                }
+            }
+
+            source = "NOT FOUND";
+            return null;
         }
     }
 }

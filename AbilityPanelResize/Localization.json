@@ -99,6 +99,20 @@
       "enGB": "Splits the leftover width evenly instead of dumping it all on the right."
     },
     {
+      "Key": "AbilityPanelResize.Settings.StencilMask",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.StencilMask",
+      "ProcessTemplates": false,
+      "ruRU": "Обрезать иконки по краю окна",
+      "enGB": "Clip icons at the window edge"
+    },
+    {
+      "Key": "AbilityPanelResize.Settings.StencilMaskHint",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.StencilMaskHint",
+      "ProcessTemplates": false,
+      "ruRU": "Без этого иконки, наполовину уехавшие под заголовок, рисуются поверх него целиком. Если вместо иконок пустое окно — выключите; применяется сразу.",
+      "enGB": "Without this, icons half-scrolled under the title are drawn over it in full. If the panel turns up empty instead of showing icons, switch this off; applies immediately."
+    },
+    {
       "Key": "AbilityPanelResize.Settings.ScrollSensitivity",
       "SimpleName": "AbilityPanelResize.UnityModManager.Settings.ScrollSensitivity",
       "ProcessTemplates": false,
@@ -118,6 +132,27 @@
       "ProcessTemplates": false,
       "ruRU": "Насколько далеко за границу панели выступает зона, за которую её можно тянуть.",
       "enGB": "How far outside the panel border the resize grip reaches."
+    },
+    {
+      "Key": "AbilityPanelResize.Settings.Section.Diagnostics",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.Section.Diagnostics",
+      "ProcessTemplates": false,
+      "ruRU": "Диагностика",
+      "enGB": "Diagnostics"
+    },
+    {
+      "Key": "AbilityPanelResize.Settings.Diagnostics",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.Diagnostics",
+      "ProcessTemplates": false,
+      "ruRU": "Писать разбор панели в журнал игры",
+      "enGB": "Write panel diagnostics to the game log"
+    },
+    {
+      "Key": "AbilityPanelResize.Settings.DiagnosticsHint",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.DiagnosticsHint",
+      "ProcessTemplates": false,
+      "ruRU": "Нужно только для разбора неполадок: размеры, обрезка, материалы. Дамп пишется сам при прокрутке под заголовок и по Ctrl+Alt+D.",
+      "enGB": "Only needed for troubleshooting: sizes, clipping, materials. The dump is written automatically when content scrolls under the title, and on Ctrl+Alt+D."
     },
     {
       "Key": "AbilityPanelResize.Settings.ApplyHint",
@@ -153,6 +188,55 @@
       "ProcessTemplates": false,
       "ruRU": "Обёртка ScrollRect добавлена на панель способностей.",
       "enGB": "ScrollRect wrapper added to the ability panel."
+    },
+    {
+      "Key": "AbilityPanelResize.Log.MaskStencilOk",
+      "SimpleName": "AbilityPanelResize.Log.MaskStencilOk",
+      "ProcessTemplates": false,
+      "ruRU": "Шейдер '{0}' поддерживает трафаретную обрезку — иконки будут обрезаться по краю окна. Свойства шейдера: {1}",
+      "enGB": "Shader '{0}' supports stencil masking; icons will be clipped at the window edge. Shader properties: {1}"
+    },
+    {
+      "Key": "AbilityPanelResize.Log.MaskStencilMissing",
+      "SimpleName": "AbilityPanelResize.Log.MaskStencilMissing",
+      "ProcessTemplates": false,
+      "ruRU": "Шейдер '{0}' НЕ поддерживает трафаретную обрезку. Иконки на краю окна обрезаться не будут, нужен другой подход. Свойства шейдера: {1}",
+      "enGB": "Shader '{0}' does NOT support stencil masking. Icons at the window edge will not be clipped; another approach is needed. Shader properties: {1}"
+    },
+    {
+      "Key": "AbilityPanelResize.Log.MaskShaderUnknown",
+      "SimpleName": "AbilityPanelResize.Log.MaskShaderUnknown",
+      "ProcessTemplates": false,
+      "ruRU": "Не удалось определить шейдер области прокрутки — проверить поддержку обрезки нечем.",
+      "enGB": "Could not determine the scroll viewport shader; unable to check masking support."
+    },
+    {
+      "Key": "AbilityPanelResize.Log.HeaderNotFound",
+      "SimpleName": "AbilityPanelResize.Log.HeaderNotFound",
+      "ProcessTemplates": false,
+      "ruRU": "Шапку окна найти не удалось, высота взята из отступа сетки ({0} px). Иконки почти наверняка залезут на заголовок.",
+      "enGB": "Could not find the window header; height taken from grid padding ({0} px). Icons will almost certainly overlap the title."
+    },
+    {
+      "Key": "AbilityPanelResize.Log.HeaderInsetFixed",
+      "SimpleName": "AbilityPanelResize.Log.HeaderInsetFixed",
+      "ProcessTemplates": false,
+      "ruRU": "Высота шапки уточнена после раскладки: было {0} px, стало {1} px.",
+      "enGB": "Header height corrected after layout: was {0} px, now {1} px."
+    },
+    {
+      "Key": "AbilityPanelResize.Log.ScrollbarAdded",
+      "SimpleName": "AbilityPanelResize.Log.ScrollbarAdded",
+      "ProcessTemplates": false,
+      "ruRU": "Скроллбар добавлен (образец: {0}, ширина {1} px).",
+      "enGB": "Scrollbar added (source: {0}, width {1} px)."
+    },
+    {
+      "Key": "AbilityPanelResize.Log.ScrollbarSourceNotFound",
+      "SimpleName": "AbilityPanelResize.Log.ScrollbarSourceNotFound",
+      "ProcessTemplates": false,
+      "ruRU": "Не нашёл в игре вертикальный скроллбар, с которого можно скопировать вид. Панель останется без бегунка, прокрутка колесом мыши работает как раньше.",
+      "enGB": "No vertical scrollbar found in the game to copy the look from. The panel stays without a slider; mouse wheel scrolling still works."
     },
     {
       "Key": "AbilityPanelResize.Log.HandlesAdded",

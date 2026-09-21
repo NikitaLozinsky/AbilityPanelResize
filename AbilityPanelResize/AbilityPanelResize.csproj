@@ -58,7 +58,7 @@
             <Private>False</Private>
         </Reference>
 
-        <!-- RectTransformUtility (используется в VerticalOnlyResizeHandle) -->
+        <!-- RectTransformUtility (используется в PanelResizeHandle) -->
         <Reference Include="UnityEngine.UIModule">
             <HintPath>$(WOTR_PATH)\Wrath_Data\Managed\UnityEngine.UIModule.dll</HintPath>
             <Private>False</Private>

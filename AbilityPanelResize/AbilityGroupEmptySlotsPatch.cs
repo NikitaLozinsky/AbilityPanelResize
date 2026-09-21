@@ -1,10 +1,14 @@
 using HarmonyLib;
 using Kingmaker.UI.MVVM._PCView.ActionBar;
-using Kingmaker.UI.MVVM._VM.ActionBar;
 using UnityEngine;
 
 namespace AbilityPanelResize
 {
+    /// <summary>
+    /// Игра добивает список пустыми слотами до кратности пяти, чтобы ряд не
+    /// выглядел оборванным в узком ванильном окне. У растягиваемого окна число
+    /// колонок произвольное, и эти пустышки превращаются в дыры посреди сетки.
+    /// </summary>
     [HarmonyPatch(typeof(ActionBarGroupPCView), "AddEmptySlots")]
     public static class ActionBarGroupPCView_AddEmptySlots_Patch
     {
@@ -17,8 +21,7 @@ namespace AbilityPanelResize
                 return true;
             }
 
-            ActionBarGroupType groupType = Traverse.Create(__instance).Field("m_GroupType").GetValue<ActionBarGroupType>();
-            return groupType != ActionBarGroupType.Ability;
+            return !ActionBarGroupAccess.IsAbilityGroup(__instance);
         }
     }
 }
