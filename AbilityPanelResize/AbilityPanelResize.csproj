@@ -90,6 +90,10 @@
         </Reference>
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Assets\" />
+    </ItemGroup>
+
     <Target Name="DeployMod" AfterTargets="Build">
         <PropertyGroup>
             <ModFolder>$(WOTR_PATH)\Mods\$(AssemblyName)</ModFolder>
