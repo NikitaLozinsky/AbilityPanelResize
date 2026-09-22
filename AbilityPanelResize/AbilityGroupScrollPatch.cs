@@ -170,10 +170,16 @@ namespace AbilityPanelResize
 
             ActionBarGroupAccess.SetSlotContainer(__instance, contentRect);
 
+            // Задник ловит клики, а не пропускает их насквозь. Раньше было
+            // наоборот — так решали перехват кликов у соседей по интерфейсу. Но
+            // у окна произвольного размера пустого места много, и клик по нему
+            // уходил в мир: отряд шёл туда, куда игрок целился внутри окна.
+            // Соседям это не мешает: root.SetAsFirstSibling() держит наше окно
+            // самым нижним внутри Groups, поэтому рейкаст отдаёт им приоритет.
             Image backgroundImage = root.Find(ModNames.Background)?.GetComponent<Image>();
             if (backgroundImage != null)
             {
-                backgroundImage.raycastTarget = false;
+                backgroundImage.raycastTarget = true;
             }
 
             if (originalGrid != null)

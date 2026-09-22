@@ -46,7 +46,12 @@ namespace AbilityPanelResize
             // `_ColorMask` у него есть — проверено дампом свойств.
             Image shape = viewport.AddComponent<Image>();
             shape.color = Color.white;
-            shape.raycastTarget = false;
+
+            // Заодно эта картинка ловит клики по пустому месту области
+            // прокрутки: задник окна до неё не достаёт, а клик мимо иконки
+            // иначе проваливается в мир. Иконкам она не мешает — они её
+            // потомки и лежат выше.
+            shape.raycastTarget = true;
 
             Mask mask = viewport.AddComponent<Mask>();
             mask.showMaskGraphic = false;

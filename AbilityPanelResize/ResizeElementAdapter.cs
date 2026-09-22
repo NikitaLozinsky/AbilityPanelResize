@@ -37,6 +37,10 @@ namespace AbilityPanelResize
         private GameObject m_ScrollbarHolder;
         private string m_CurrentCharacterId;
 
+        /// Хендлы рождаются выключенными: свёрнутое окно — обычное состояние
+        /// панели при заходе в локацию.
+        private bool m_PartsActive;
+
         private float? m_InitialCenterX;
 
         private RectTransform Rect => m_Rect != null ? m_Rect : (m_Rect = GetComponent<RectTransform>());
@@ -193,11 +197,35 @@ namespace AbilityPanelResize
         /// </summary>
         public void SetPanelPartsActive(bool active)
         {
+            // Хендлы — единственная часть окна, чьей активностью распоряжаемся
+            // мы сами, и единственная, которая торчит наружу за его границу.
+            // Если они погаснут не вовремя, на экране это выглядит как «окно на
+            // месте, но грани не ловятся» — поэтому под диагностикой пишем в
+            // лог и сам факт, и того, кто его вызвал.
+            if (active != m_PartsActive && Main.Settings != null && Main.Settings.Diagnostics)
+            {
+                Main.Logger.Log($"=== AbilityPanelResize: части панели {(active ? "включены" : "ВЫКЛЮЧЕНЫ")} ===\n"
+                                + new System.Diagnostics.StackTrace(fNeedFileInfo: false));
+            }
+
+            bool changed = active != m_PartsActive;
+            m_PartsActive = active;
+
             foreach (PanelResizeHandle handle in m_Handles)
             {
-                if (handle != null)
+                if (handle == null)
                 {
-                    handle.gameObject.SetActive(active);
+                    continue;
+                }
+
+                handle.gameObject.SetActive(active);
+
+                // Хендлы обязаны лежать выше всего внутри окна. Порядок двух
+                // постфиксов на Initialize не определён, поэтому скроллбар мог
+                // родиться после них и оказаться сверху.
+                if (changed && active)
+                {
+                    handle.transform.SetAsLastSibling();
                 }
             }
 

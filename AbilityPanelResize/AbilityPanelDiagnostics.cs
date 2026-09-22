@@ -1,5 +1,9 @@
+using System.Collections.Generic;
 using System.Text;
+using Kingmaker.UI;
+using TurnBased.Controllers;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace AbilityPanelResize
@@ -7,7 +11,8 @@ namespace AbilityPanelResize
     /// <summary>
     /// Дамп геометрии и клиппирования панели в лог. Срабатывает сам, когда
     /// контент уезжает под шапку (то есть ровно тогда, когда баг и виден), и
-    /// принудительно по Ctrl+Alt+D.
+    /// принудительно по Ctrl+Alt+D. Отдельно по Ctrl+Alt+R — проба указателя
+    /// (см. <see cref="BuildPointerProbe"/>).
     ///
     /// Инструмент уже дважды отличал причины, которые на экране выглядят
     /// одинаково, поэтому живёт в проекте, а не выпиливается после фикса.
@@ -24,8 +29,14 @@ namespace AbilityPanelResize
 
         private const int MaxRowsLogged = 14;
 
+        /// Сколько кадров расхождение должно продержаться, чтобы считать его
+        /// настоящим, а не опережением события на кадр.
+        private const int StuckFramesToReport = 10;
+
         private readonly Vector3[] m_Corners = new Vector3[4];
         private bool m_AuditDone;
+        private bool m_PointerProbeDone;
+        private int m_StuckFrames;
 
         private void Update()
         {
@@ -43,7 +54,10 @@ namespace AbilityPanelResize
                 Main.Logger.Log(BuildOverflowAudit());
             }
 
-            if (!Input.GetKeyDown(KeyCode.D))
+            CheckPointerStuck();
+
+            bool hotkey = Input.GetKeyDown(KeyCode.D) || Input.GetKeyDown(KeyCode.R);
+            if (!hotkey)
             {
                 return;
             }
@@ -55,9 +69,236 @@ namespace AbilityPanelResize
                 return;
             }
 
+            if (Input.GetKeyDown(KeyCode.R))
+            {
+                Main.Logger.Log(BuildPointerProbe());
+                return;
+            }
+
             Main.Logger.Log(BuildReport());
             Main.Logger.Log(BuildClippingAudit());
             Main.Logger.Log(BuildOverflowAudit());
+        }
+
+        /// <summary>
+        /// Ловит баг сам, без хоткея: курсор геометрически внутри прямоугольника
+        /// хендла, а события входа хендл так и не получил. Это ровно тот случай,
+        /// который на экране выглядит как «грань не ловится» — значит рейкаст
+        /// перехватил кто-то другой, и самое время выписать, кто именно.
+        ///
+        /// Требуем, чтобы расхождение держалось несколько кадров подряд: события
+        /// указателя приходят из <c>EventSystem.Update</c>, и в первый кадр входа
+        /// наш <c>Update</c> может опередить их на законных основаниях.
+        /// </summary>
+        private void CheckPointerStuck()
+        {
+            if (m_PointerProbeDone || Root == null)
+            {
+                return;
+            }
+
+            Camera camera = ProbeCamera();
+            Vector2 mouse = Input.mousePosition;
+            PanelResizeHandle stuck = null;
+
+            foreach (PanelResizeHandle handle in Root.GetComponentsInChildren<PanelResizeHandle>(includeInactive: true))
+            {
+                if (handle.transform is RectTransform rect
+                    && !handle.PointerInside
+                    && RectTransformUtility.RectangleContainsScreenPoint(rect, mouse, camera))
+                {
+                    stuck = handle;
+                    break;
+                }
+            }
+
+            if (stuck == null)
+            {
+                m_StuckFrames = 0;
+                return;
+            }
+
+            if (++m_StuckFrames < StuckFramesToReport)
+            {
+                return;
+            }
+
+            m_PointerProbeDone = true;
+            Main.Logger.Log($"курсор внутри хендла {stuck.name}, но событие входа не пришло — разбираем, кто перехватил");
+            Main.Logger.Log(BuildPointerProbe());
+        }
+
+        /// <summary>
+        /// Камера для пересчёта экранных координат. Спрашивать её надо у
+        /// корневого Canvas: у вложенного собственное поле камеры обычно пустое,
+        /// и тест попадания в прямоугольник молча отвечал бы неправдой.
+        /// </summary>
+        private Camera ProbeCamera()
+        {
+            Canvas canvas = Root != null ? Root.GetComponentInParent<Canvas>() : null;
+            Canvas root = canvas != null ? canvas.rootCanvas : null;
+            return root != null && root.renderMode != RenderMode.ScreenSpaceOverlay ? root.worldCamera : null;
+        }
+
+        /// <summary>
+        /// Почему мышь не доезжает до хендла ресайза.
+        ///
+        /// «Курсор не меняется и окно не тянется» — это один и тот же симптом у
+        /// трёх совершенно разных причин, и на экране они неразличимы:
+        ///
+        /// * хендл выключен — тогда <c>activeInHierarchy=False</c>;
+        /// * хендл на месте, но сверху что-то лежит — тогда он есть в списке
+        ///   рейкаста, но не первым;
+        /// * хендл вообще не участвует в рейкасте — значит его отсекает фильтр
+        ///   у кого-то из предков (<c>CanvasGroup.blocksRaycasts</c>, маска), и
+        ///   искать надо в цепочке предков, а не среди соседей.
+        ///
+        /// Отдельной строкой пишем <c>IsResizeCursor</c>: этот флаг общий на всю
+        /// игру, и если он завис в <c>True</c> от чужого окна, наш курсор молча
+        /// не выставится, хотя с рейкастом всё в порядке.
+        /// </summary>
+        private string BuildPointerProbe()
+        {
+            var report = new StringBuilder();
+            report.AppendLine("=== AbilityPanelResize: проба указателя ===");
+
+            if (Root == null)
+            {
+                report.AppendLine("root: NULL");
+                return report.ToString();
+            }
+
+            Vector2 mouse = Input.mousePosition;
+            Canvas canvas = Root.GetComponentInParent<Canvas>()?.rootCanvas;
+            Camera camera = ProbeCamera();
+
+            report.AppendLine($"мышь={mouse} IsResizeCursor={CursorController.IsResizeCursor} "
+                              + $"пошаговыйБой={SafeTurnBasedState()}");
+            report.AppendLine($"корневой canvas={(canvas != null ? canvas.name : "NULL")} "
+                              + $"renderMode={(canvas != null ? canvas.renderMode.ToString() : "?")} "
+                              + $"camera={(camera != null ? camera.name : "null (overlay)")}");
+
+            report.AppendLine("хендлы:");
+            foreach (PanelResizeHandle handle in Root.GetComponentsInChildren<PanelResizeHandle>(includeInactive: true))
+            {
+                report.AppendLine("  " + DescribeHandle(handle, mouse, camera));
+            }
+
+            report.AppendLine("предки окна (снизу вверх):");
+            for (Transform t = Root; t != null; t = t.parent)
+            {
+                report.AppendLine("  " + DescribeAncestor(t, mouse, camera));
+            }
+
+            EventSystem eventSystem = EventSystem.current;
+            if (eventSystem == null)
+            {
+                report.AppendLine("EventSystem.current == null — рейкаст не проверить");
+                return report.ToString();
+            }
+
+            var results = new List<RaycastResult>();
+            eventSystem.RaycastAll(new PointerEventData(eventSystem) { position = mouse }, results);
+
+            report.AppendLine($"под курсором объектов: {results.Count} (первый — самый верхний)");
+            for (int i = 0; i < results.Count && i < MaxRowsLogged; i++)
+            {
+                RaycastResult result = results[i];
+                report.AppendLine($"  {i}: {FullPath(result.gameObject.transform)} "
+                                  + $"[{(result.module != null ? result.module.GetType().Name : "?")}] "
+                                  + $"sortingOrder={result.sortingOrder} depth={result.depth}");
+            }
+
+            return report.ToString();
+        }
+
+        private string DescribeHandle(PanelResizeHandle handle, Vector2 mouse, Camera camera)
+        {
+            var rect = handle.transform as RectTransform;
+            if (rect == null)
+            {
+                return handle.name + ": нет RectTransform";
+            }
+
+            rect.GetWorldCorners(m_Corners);
+            Vector2 min = RectTransformUtility.WorldToScreenPoint(camera, m_Corners[0]);
+            Vector2 max = RectTransformUtility.WorldToScreenPoint(camera, m_Corners[2]);
+
+            Image image = handle.GetComponent<Image>();
+            bool underMouse = RectTransformUtility.RectangleContainsScreenPoint(rect, mouse, camera);
+
+            return $"{handle.name}: activeSelf={handle.gameObject.activeSelf} "
+                   + $"activeInHierarchy={handle.gameObject.activeInHierarchy} "
+                   + $"raycastTarget={(image != null ? image.raycastTarget.ToString() : "нет Image")} "
+                   + $"экран=({min.x:0}..{max.x:0} x {min.y:0}..{max.y:0}) подМышью={underMouse}";
+        }
+
+        /// Всё, что у предка может отсечь рейкаст или увести отрисовку в другой слой.
+        private string DescribeAncestor(Transform t, Vector2 mouse, Camera camera)
+        {
+            var line = new StringBuilder(t.name);
+            line.Append($" active={t.gameObject.activeSelf}");
+
+            if (t is RectTransform rect)
+            {
+                line.Append($" подМышью={RectTransformUtility.RectangleContainsScreenPoint(rect, mouse, camera)}");
+            }
+
+            var group = t.GetComponent<CanvasGroup>();
+            if (group != null)
+            {
+                line.Append($" CanvasGroup(alpha={group.alpha:0.##} blocksRaycasts={group.blocksRaycasts} "
+                            + $"interactable={group.interactable} ignoreParent={group.ignoreParentGroups})");
+            }
+
+            var canvas = t.GetComponent<Canvas>();
+            if (canvas != null)
+            {
+                line.Append($" Canvas(override={canvas.overrideSorting} order={canvas.sortingOrder})");
+            }
+
+            var rectMask = t.GetComponent<RectMask2D>();
+            if (rectMask != null)
+            {
+                line.Append($" RectMask2D(enabled={rectMask.isActiveAndEnabled})");
+            }
+
+            var mask = t.GetComponent<Mask>();
+            if (mask != null)
+            {
+                line.Append($" Mask(enabled={mask.isActiveAndEnabled})");
+            }
+
+            var raycaster = t.GetComponent<GraphicRaycaster>();
+            if (raycaster != null)
+            {
+                line.Append($" GraphicRaycaster(enabled={raycaster.enabled})");
+            }
+
+            return line.ToString();
+        }
+
+        private static string SafeTurnBasedState()
+        {
+            try
+            {
+                return CombatController.IsInTurnBasedCombat().ToString();
+            }
+            catch (System.Exception exception)
+            {
+                return "не определить: " + exception.Message;
+            }
+        }
+
+        private static string FullPath(Transform target)
+        {
+            string path = target.name;
+            for (Transform t = target.parent; t != null; t = t.parent)
+            {
+                path = t.name + "/" + path;
+            }
+
+            return path;
         }
 
         /// <summary>

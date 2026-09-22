@@ -14,6 +14,21 @@ namespace AbilityPanelResize
     {
         private const float TopHandleButtonGap = 60f;
 
+        /// <summary>
+        /// Насколько зона захвата заходит внутрь окна.
+        ///
+        /// Раньше она лежала целиком снаружи, от грани и дальше: так она не
+        /// отъедала место у иконок. Но целиться приходилось мимо рамки, а рука
+        /// тянется ровно на грань — и промахивалась. Небольшой заход внутрь
+        /// делает грань «липкой» с обеих сторон, при этом иконки не задевает:
+        /// в окне и так есть отступ сетки от рамки.
+        ///
+        /// Наружу зона по-прежнему растёт на настраиваемую толщину, внутрь —
+        /// ровно на эти пиксели, иначе широкая зона захвата накрыла бы
+        /// скроллбар и ползунок стало бы не ухватить.
+        /// </summary>
+        private const float InnerGrip = 4f;
+
         [HarmonyPostfix]
         public static void Postfix(ActionBarGroupPCView __instance, ActionBarGroupType type)
         {
@@ -36,31 +51,31 @@ namespace AbilityPanelResize
 
             CreateHandle(root, adapter, stableReference, ModNames.ResizeRight,
                 anchorMin: new Vector2(1f, 0f), anchorMax: new Vector2(1f, 1f),
-                baseOffsetMin: Vector2.zero, thicknessDirMin: Vector2.zero,
+                baseOffsetMin: new Vector2(-InnerGrip, 0f), thicknessDirMin: Vector2.zero,
                 baseOffsetMax: Vector2.zero, thicknessDirMax: new Vector2(1f, 0f),
                 xSign: 1f, ySign: 0f, CursorRoot.CursorType.ArrowHorizontalCursor);
 
             CreateHandle(root, adapter, stableReference, ModNames.ResizeLeft,
                 anchorMin: new Vector2(0f, 0f), anchorMax: new Vector2(0f, 1f),
                 baseOffsetMin: Vector2.zero, thicknessDirMin: new Vector2(-1f, 0f),
-                baseOffsetMax: Vector2.zero, thicknessDirMax: Vector2.zero,
+                baseOffsetMax: new Vector2(InnerGrip, 0f), thicknessDirMax: Vector2.zero,
                 xSign: -1f, ySign: 0f, CursorRoot.CursorType.ArrowHorizontalCursor);
 
             CreateHandle(root, adapter, stableReference, ModNames.ResizeTopLeftSeg,
                 anchorMin: new Vector2(0f, 1f), anchorMax: new Vector2(0.5f, 1f),
-                baseOffsetMin: Vector2.zero, thicknessDirMin: Vector2.zero,
+                baseOffsetMin: new Vector2(0f, -InnerGrip), thicknessDirMin: Vector2.zero,
                 baseOffsetMax: new Vector2(-TopHandleButtonGap / 2f, 0f), thicknessDirMax: new Vector2(0f, 1f),
                 xSign: 0f, ySign: 1f, CursorRoot.CursorType.ArrowVerticalCursor);
 
             CreateHandle(root, adapter, stableReference, ModNames.ResizeTopRightSeg,
                 anchorMin: new Vector2(0.5f, 1f), anchorMax: new Vector2(1f, 1f),
-                baseOffsetMin: new Vector2(TopHandleButtonGap / 2f, 0f), thicknessDirMin: Vector2.zero,
+                baseOffsetMin: new Vector2(TopHandleButtonGap / 2f, -InnerGrip), thicknessDirMin: Vector2.zero,
                 baseOffsetMax: Vector2.zero, thicknessDirMax: new Vector2(0f, 1f),
                 xSign: 0f, ySign: 1f, CursorRoot.CursorType.ArrowVerticalCursor);
 
             CreateHandle(root, adapter, stableReference, ModNames.ResizeTopRight,
                 anchorMin: new Vector2(1f, 1f), anchorMax: new Vector2(1f, 1f),
-                baseOffsetMin: Vector2.zero, thicknessDirMin: Vector2.zero,
+                baseOffsetMin: new Vector2(-InnerGrip, -InnerGrip), thicknessDirMin: Vector2.zero,
                 baseOffsetMax: Vector2.zero, thicknessDirMax: new Vector2(1f, 1f),
                 xSign: 1f, ySign: 1f, CursorRoot.CursorType.ArrowDiagonally01Cursor);
 

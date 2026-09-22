@@ -31,8 +31,10 @@ namespace AbilityPanelResize
         private const float MinWidth = 4f;
         private const float MaxWidth = 60f;
 
-        /// Зазор между скроллбаром и правой кромкой рамки окна.
-        public const float RightInset = 2f;
+        /// Зазор между скроллбаром и правой кромкой рамки окна. Не меньше, чем
+        /// зона захвата правой грани заходит внутрь окна, иначе она накроет
+        /// ползунок и его станет не ухватить.
+        public const float RightInset = 5f;
 
         /// Насколько дополнительно сужаем viewport, чтобы иконки не липли к дорожке.
         private const float ViewportGap = 2f;
@@ -63,7 +65,13 @@ namespace AbilityPanelResize
             }
 
             var sourceRect = source.transform as RectTransform;
-            float width = MeasureWidth(sourceRect);
+
+            // Дорожка и ползунок меряются отдельно: в игре ползунок заметно
+            // шире дорожки, и именно он делает скроллбар заметным. Место под
+            // скроллбар резервируем по самому широкому из них.
+            float trackWidth = MeasureWidth(sourceRect);
+            float handleWidth = MeasureHandleWidth(source, sourceRect, trackWidth);
+            float width = Mathf.Max(trackWidth, handleWidth);
 
             // Держатель нужен потому, что видимостью самого скроллбара
             // распоряжается ScrollRect (режим AutoHide сам зовёт SetActive, когда
@@ -82,9 +90,9 @@ namespace AbilityPanelResize
             barRect.SetParent(holder, worldPositionStays: false);
             Stretch(barRect);
 
-            CreateBack(source, sourceRect, barRect);
+            CreateBack(source, sourceRect, barRect, trackWidth);
 
-            RectTransform slidingArea = CreateSlidingArea(source, sourceRect, barRect);
+            RectTransform slidingArea = CreateSlidingArea(source, sourceRect, barRect, handleWidth);
             Image handleImage = CreateHandle(source, slidingArea);
 
             Scrollbar scrollbar = barGO.AddComponent<Scrollbar>();
@@ -119,11 +127,12 @@ namespace AbilityPanelResize
                 holderGO.SetActive(false);
             }
 
-            Main.Logger.Log(Localization.Get("AbilityPanelResize.Log.ScrollbarAdded", source.name, width.ToString("0")));
+            Main.Logger.Log(Localization.Get("AbilityPanelResize.Log.ScrollbarAdded", source.name,
+                $"{trackWidth:0}/{handleWidth:0}"));
             return holder;
         }
 
-        private static void CreateBack(Scrollbar source, RectTransform sourceRect, RectTransform parent)
+        private static void CreateBack(Scrollbar source, RectTransform sourceRect, RectTransform parent, float width)
         {
             Image sourceBack = FindChildImage(sourceRect, BackName);
             if (sourceBack == null)
@@ -148,17 +157,17 @@ namespace AbilityPanelResize
 
             if (sourceBack.rectTransform.parent == sourceRect)
             {
-                CopyRect(sourceBack.rectTransform, back);
+                PlaceCentered(sourceBack.rectTransform, back, width);
             }
             else
             {
-                Stretch(back);
+                PlaceCentered(null, back, width);
             }
 
             CopyImage(sourceBack, backGO.AddComponent<Image>());
         }
 
-        private static RectTransform CreateSlidingArea(Scrollbar source, RectTransform sourceRect, RectTransform parent)
+        private static RectTransform CreateSlidingArea(Scrollbar source, RectTransform sourceRect, RectTransform parent, float width)
         {
             var areaGO = new GameObject(SlidingAreaName, typeof(RectTransform));
             RectTransform area = areaGO.GetComponent<RectTransform>();
@@ -169,11 +178,11 @@ namespace AbilityPanelResize
             var sourceArea = source.handleRect != null ? source.handleRect.parent as RectTransform : null;
             if (sourceArea != null && sourceArea != sourceRect && sourceArea.parent == sourceRect)
             {
-                CopyRect(sourceArea, area);
+                PlaceCentered(sourceArea, area, width);
             }
             else
             {
-                Stretch(area);
+                PlaceCentered(null, area, width);
             }
 
             return area;
@@ -200,11 +209,18 @@ namespace AbilityPanelResize
 
             // anchorMin/anchorMax ползунка каждый кадр переписывает сам Scrollbar —
             // копируем только то, что он не трогает.
+            //
+            // По горизонтали не копируем ничего. У образца ползунок шире своей
+            // дорожки (положительный sizeDelta.x при растянутых якорях), и в
+            // нашей узкой дорожке эта добавка вылезала за правый край окна —
+            // прямо на хендл ресайза, перехватывая у него мышь. Поймано пробой
+            // указателя: под курсором на самой грани первым лежал ползунок.
+            // Ширину ползунка задаёт дорожка, и только она.
             if (source.handleRect != null)
             {
                 handle.pivot = source.handleRect.pivot;
-                handle.sizeDelta = source.handleRect.sizeDelta;
-                handle.anchoredPosition = source.handleRect.anchoredPosition;
+                handle.sizeDelta = new Vector2(0f, source.handleRect.sizeDelta.y);
+                handle.anchoredPosition = new Vector2(0f, source.handleRect.anchoredPosition.y);
             }
             else
             {
@@ -272,6 +288,36 @@ namespace AbilityPanelResize
                    && !candidate.name.StartsWith(ModNames.Prefix);
         }
 
+        /// <summary>
+        /// Ширина ползунка у образца.
+        ///
+        /// Померить её напрямую нельзя: <c>Scrollbar</c> каждый кадр сам
+        /// переписывает ползунку якоря, растягивая его по дорожке на всю
+        /// ширину. Поэтому его видимая ширина — это ширина дорожки плюс
+        /// собственные добавки: его самого и промежуточной «Sliding Area».
+        /// Именно эта добавка и делает ползунок в игре заметнее дорожки.
+        /// </summary>
+        private static float MeasureHandleWidth(Scrollbar source, RectTransform sourceRect, float trackWidth)
+        {
+            RectTransform handle = source.handleRect;
+            if (handle == null)
+            {
+                return trackWidth;
+            }
+
+            float extra = handle.sizeDelta.x;
+
+            if (handle.parent is RectTransform area
+                && area != sourceRect
+                && !Mathf.Approximately(area.anchorMin.x, area.anchorMax.x))
+            {
+                extra += area.sizeDelta.x;
+            }
+
+            float width = trackWidth + extra;
+            return width >= MinWidth && width <= MaxWidth ? width : trackWidth;
+        }
+
         private static float MeasureWidth(RectTransform sourceRect)
         {
             if (sourceRect == null)
@@ -302,13 +348,27 @@ namespace AbilityPanelResize
             rect.offsetMax = Vector2.zero;
         }
 
-        private static void CopyRect(RectTransform source, RectTransform target)
+        /// <summary>
+        /// Ставит деталь по центру полосы с заданной шириной, забирая у образца
+        /// только вертикальную геометрию.
+        ///
+        /// Горизонталь у образца не копируется вовсе, и это принципиально: там
+        /// ширина задана добавкой к своему родителю, а у нас родитель другой.
+        /// Один раз скопированная как есть, такая добавка вылезла за правый
+        /// край окна — ровно туда, где начинается зона захвата грани, — и
+        /// перехватила у неё мышь. Ширину здесь задаёт вызывающий, измерив её
+        /// у образца заранее.
+        ///
+        /// <paramref name="source"/> может быть null: тогда деталь просто
+        /// растягивается по вертикали.
+        /// </summary>
+        private static void PlaceCentered(RectTransform source, RectTransform target, float width)
         {
-            target.anchorMin = source.anchorMin;
-            target.anchorMax = source.anchorMax;
-            target.pivot = source.pivot;
-            target.anchoredPosition = source.anchoredPosition;
-            target.sizeDelta = source.sizeDelta;
+            target.anchorMin = new Vector2(0.5f, source != null ? source.anchorMin.y : 0f);
+            target.anchorMax = new Vector2(0.5f, source != null ? source.anchorMax.y : 1f);
+            target.pivot = new Vector2(0.5f, source != null ? source.pivot.y : 0.5f);
+            target.anchoredPosition = new Vector2(0f, source != null ? source.anchoredPosition.y : 0f);
+            target.sizeDelta = new Vector2(width, source != null ? source.sizeDelta.y : 0f);
         }
 
         private static void CopyImage(Image source, Image target)
