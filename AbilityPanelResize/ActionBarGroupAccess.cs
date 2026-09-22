@@ -26,9 +26,6 @@ namespace AbilityPanelResize
     /// </summary>
     public static class ActionBarGroupAccess
     {
-        private static readonly AccessTools.FieldRef<ActionBarGroupPCView, ActionBarGroupType> s_GroupType =
-            AccessTools.FieldRefAccess<ActionBarGroupPCView, ActionBarGroupType>("m_GroupType");
-
         private static readonly AccessTools.FieldRef<ActionBarGroupPCView, bool> s_VisibleState =
             AccessTools.FieldRefAccess<ActionBarGroupPCView, bool>("VisibleState");
 
@@ -54,11 +51,6 @@ namespace AbilityPanelResize
         // избавляет от главного: поиска члена на каждом обращении.
         private static readonly MethodInfo s_ViewModelGetter =
             AccessTools.PropertyGetter(typeof(ActionBarGroupPCView), "ViewModel");
-
-        public static bool IsAbilityGroup(ActionBarGroupPCView view)
-        {
-            return s_GroupType(view) == ActionBarGroupType.Ability;
-        }
 
         /// Развёрнута ли панель прямо сейчас.
         public static bool IsVisible(ActionBarGroupPCView view)

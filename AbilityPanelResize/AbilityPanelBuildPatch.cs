@@ -11,8 +11,16 @@ using UnityEngine.UI;
 
 namespace AbilityPanelResize
 {
+    /// <summary>
+    /// Единственная точка, где панель способностей превращается в прокручиваемое
+    /// и растягиваемое окно. Раньше этим занимались два независимых постфикса на
+    /// одном и том же <c>Initialize</c>; их слили в один, потому что порядок
+    /// между несколькими патчами одного метода Harmony не определяет, а здесь он
+    /// важен — хендлы граней должны родиться последними, чтобы лежать поверх
+    /// скроллбара.
+    /// </summary>
     [HarmonyPatch(typeof(ActionBarGroupPCView), nameof(ActionBarGroupPCView.Initialize))]
-    public static class ActionBarGroupPCView_Initialize_AddScroll_Patch
+    public static class ActionBarGroupPCView_Initialize_Patch
     {
         [HarmonyPostfix]
         public static void Postfix(ActionBarGroupPCView __instance, ActionBarGroupType type)
@@ -23,12 +31,13 @@ namespace AbilityPanelResize
             }
 
             RectTransform root = __instance.transform as RectTransform;
-            if (root == null || root.Find(ModNames.Viewport) != null)
+            if (root == null || __instance.GetComponent<ResizeElementAdapter>() != null)
             {
                 return;
             }
 
             Settings settings = Main.Settings;
+            ResizeElementAdapter adapter = ResizeElementAdapter.Ensure(__instance);
             List<ActionBarBaseSlotPCView> slotsList = ActionBarGroupAccess.GetSlots(__instance);
 
             GridLayoutGroupWorkaround originalGrid = root.GetComponent<GridLayoutGroupWorkaround>();
@@ -66,8 +75,9 @@ namespace AbilityPanelResize
             foreach (ActionBarBaseSlotPCView slot in slotsList)
             {
                 slot.transform.SetParent(contentRect, worldPositionStays: false);
-                SlotClipping.Enable(slot.transform);
             }
+
+            SlotClipping.Enable(contentRect);
 
             GridLayoutGroupWorkaround newGrid = contentGO.AddComponent<GridLayoutGroupWorkaround>();
             if (originalGrid != null)
@@ -104,38 +114,8 @@ namespace AbilityPanelResize
                 originalFitter.enabled = false;
             }
 
-            float nativeWidth = root.sizeDelta.x;
-            float defaultHeight = settings != null ? settings.DefaultHeight : 400f;
-
-            Vector2? characterSize = null;
-            if (settings != null && settings.RememberSize)
-            {
-                UnitEntityData currentUnit = Game.Instance?.SelectionCharacter?.CurrentSelectedCharacter;
-                if (currentUnit != null && settings.TryGetCharacterSize(currentUnit.UniqueId, out Vector2 savedSize))
-                {
-                    characterSize = savedSize;
-                }
-            }
-
-            bool useSavedSize = settings != null && settings.RememberSize
-                && (characterSize.HasValue || settings.HasSavedSize);
-
-            float initialWidth = useSavedSize
-                ? Mathf.Clamp(characterSize?.x ?? settings.Width, ResizeLimits.MinSize.x, ResizeLimits.MaxSize.x)
-                : nativeWidth;
-            float initialHeight = useSavedSize
-                ? Mathf.Clamp(characterSize?.y ?? settings.Height, ResizeLimits.MinSize.y, ResizeLimits.MaxSize.y)
-                : Mathf.Clamp(defaultHeight, ResizeLimits.MinSize.y, ResizeLimits.MaxSize.y);
-
-            if (!Mathf.Approximately(initialWidth, nativeWidth))
-            {
-                float nativeCenterX = root.anchoredPosition.x + nativeWidth / 2f;
-                Vector2 anchoredPosition = root.anchoredPosition;
-                anchoredPosition.x = nativeCenterX - initialWidth / 2f;
-                root.anchoredPosition = anchoredPosition;
-            }
-
-            root.sizeDelta = new Vector2(initialWidth, initialHeight);
+            UnitEntityData currentUnit = Game.Instance?.SelectionCharacter?.CurrentSelectedCharacter;
+            adapter.SetSizeDelta(InitialSize(root, settings, currentUnit));
 
             ScrollRect scrollRect = root.gameObject.AddComponent<ScrollRect>();
             scrollRect.content = contentRect;
@@ -144,8 +124,6 @@ namespace AbilityPanelResize
             scrollRect.vertical = true;
             scrollRect.movementType = ScrollRect.MovementType.Clamped;
             scrollRect.scrollSensitivity = settings != null ? settings.ScrollSensitivity : 20f;
-
-            ResizeElementAdapter adapter = ResizeElementAdapter.Ensure(root.gameObject);
 
             RectTransform scrollbarHolder =
                 AbilityScrollbar.Attach(root, scrollRect, headerHeight, adapter, out float reservedWidth);
@@ -166,6 +144,7 @@ namespace AbilityPanelResize
             diagnostics.Viewport = viewportRect;
             diagnostics.Content = contentRect;
             diagnostics.Tracker = headerTracker;
+            diagnostics.Adapter = adapter;
             diagnostics.HeaderSource = headerSource;
 
             ActionBarGroupAccess.SetSlotContainer(__instance, contentRect);
@@ -182,6 +161,17 @@ namespace AbilityPanelResize
                 backgroundImage.raycastTarget = true;
             }
 
+            // Хендлы — последними: так они и лежат поверх остальных детей окна,
+            // без перестановок задним числом.
+            ResizeHandles.Build(root, adapter);
+
+            adapter.CacheParts(viewportRect, contentRect);
+
+            if (currentUnit != null)
+            {
+                adapter.SeedCharacterId(currentUnit.UniqueId);
+            }
+
             if (originalGrid != null)
             {
                 Main.Logger.Log(Localization.Get("AbilityPanelResize.Log.GridPadding",
@@ -189,6 +179,42 @@ namespace AbilityPanelResize
             }
 
             Main.Logger.Log(Localization.Get("AbilityPanelResize.Log.ScrollAdded"));
+            Main.Logger.Log(Localization.Get("AbilityPanelResize.Log.HandlesAdded"));
+        }
+
+        /// <summary>
+        /// Размер, с которым окно рождается: персональный размер текущего героя,
+        /// иначе общий шаблон, иначе родная ширина и высота из настроек.
+        /// </summary>
+        private static Vector2 InitialSize(RectTransform root, Settings settings, UnitEntityData currentUnit)
+        {
+            float nativeWidth = root.sizeDelta.x;
+            float defaultHeight = settings != null ? settings.DefaultHeight : 400f;
+            Vector2 max = ResizeLimits.MaxSize;
+
+            if (settings == null || !settings.RememberSize)
+            {
+                return new Vector2(nativeWidth, Mathf.Clamp(defaultHeight, ResizeLimits.MinSize.y, max.y));
+            }
+
+            Vector2? saved = null;
+            if (currentUnit != null && settings.TryGetCharacterSize(currentUnit.UniqueId, out Vector2 characterSize))
+            {
+                saved = characterSize;
+            }
+            else if (settings.HasSavedSize)
+            {
+                saved = new Vector2(settings.Width, settings.Height);
+            }
+
+            if (saved == null)
+            {
+                return new Vector2(nativeWidth, Mathf.Clamp(defaultHeight, ResizeLimits.MinSize.y, max.y));
+            }
+
+            return new Vector2(
+                Mathf.Clamp(saved.Value.x, ResizeLimits.MinSize.x, max.x),
+                Mathf.Clamp(saved.Value.y, ResizeLimits.MinSize.y, max.y));
         }
 
         /// <summary>

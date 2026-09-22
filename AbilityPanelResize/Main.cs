@@ -112,7 +112,7 @@ namespace AbilityPanelResize
 
             GUILayout.Space(8f);
             Section("AbilityPanelResize.Settings.Section.Diagnostics");
-            Settings.Diagnostics = GUILayout.Toggle(Settings.Diagnostics,
+            bool diagnostics = GUILayout.Toggle(Settings.Diagnostics,
                 Localization.Get("AbilityPanelResize.Settings.Diagnostics"));
             Hint("AbilityPanelResize.Settings.DiagnosticsHint");
 
@@ -125,7 +125,8 @@ namespace AbilityPanelResize
                 !Mathf.Approximately(scrollSensitivity, Settings.ScrollSensitivity) ||
                 !Mathf.Approximately(handleThickness, Settings.HandleThickness) ||
                 centerIcons != Settings.CenterIcons ||
-                stencilMask != Settings.StencilMask;
+                stencilMask != Settings.StencilMask ||
+                diagnostics != Settings.Diagnostics;
 
             Settings.MaxWidth = maxWidth;
             Settings.MaxHeight = maxHeight;
@@ -133,6 +134,7 @@ namespace AbilityPanelResize
             Settings.HandleThickness = handleThickness;
             Settings.CenterIcons = centerIcons;
             Settings.StencilMask = stencilMask;
+            Settings.Diagnostics = diagnostics;
 
             if (changed)
             {

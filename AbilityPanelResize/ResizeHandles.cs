@@ -1,16 +1,23 @@
-using HarmonyLib;
-using Kingmaker;
 using Kingmaker.Blueprints.Root;
-using Kingmaker.EntitySystem.Entities;
-using Kingmaker.UI.MVVM._PCView.ActionBar;
-using Kingmaker.UI.MVVM._VM.ActionBar;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace AbilityPanelResize
 {
-    [HarmonyPatch(typeof(ActionBarGroupPCView), nameof(ActionBarGroupPCView.Initialize))]
-    public static class ActionBarGroupPCView_Initialize_AddResize_Patch
+    /// <summary>
+    /// Пять зон захвата по краям окна: право, лево, верх двумя сегментами и
+    /// верхний правый угол.
+    ///
+    /// Раньше это был отдельный <c>[HarmonyPostfix]</c> на том же
+    /// <c>Initialize</c>, что и постройка области прокрутки. Порядок двух
+    /// постфиксов на одном методе Harmony не определяет, и из-за этого весь код
+    /// вокруг приходилось писать так, будто соседа может ещё не быть: ленивый
+    /// захват центра по X, перестраховочный <c>SetAsLastSibling</c> при каждом
+    /// развороте панели, идемпотентный <c>Ensure</c>. Теперь постройка идёт из
+    /// одного места в заданном порядке, а хендлы создаются последними — и
+    /// поверх всего лежат просто потому, что созданы позже.
+    /// </summary>
+    public static class ResizeHandles
     {
         private const float TopHandleButtonGap = 60f;
 
@@ -29,25 +36,11 @@ namespace AbilityPanelResize
         /// </summary>
         private const float InnerGrip = 4f;
 
-        [HarmonyPostfix]
-        public static void Postfix(ActionBarGroupPCView __instance, ActionBarGroupType type)
+        public static void Build(RectTransform root, ResizeElementAdapter adapter)
         {
-            if (type != ActionBarGroupType.Ability)
-            {
-                return;
-            }
-
-            RectTransform root = __instance.transform as RectTransform;
-            if (root == null || root.Find(ModNames.ResizeRight) != null)
-            {
-                return;
-            }
-
             root.SetAsFirstSibling();
 
             RectTransform stableReference = root.parent as RectTransform ?? root;
-
-            ResizeElementAdapter adapter = ResizeElementAdapter.Ensure(root.gameObject);
 
             CreateHandle(root, adapter, stableReference, ModNames.ResizeRight,
                 anchorMin: new Vector2(1f, 0f), anchorMax: new Vector2(1f, 1f),
@@ -78,14 +71,6 @@ namespace AbilityPanelResize
                 baseOffsetMin: new Vector2(-InnerGrip, -InnerGrip), thicknessDirMin: Vector2.zero,
                 baseOffsetMax: Vector2.zero, thicknessDirMax: new Vector2(1f, 1f),
                 xSign: 1f, ySign: 1f, CursorRoot.CursorType.ArrowDiagonally01Cursor);
-
-            UnitEntityData currentUnit = Game.Instance?.SelectionCharacter?.CurrentSelectedCharacter;
-            if (currentUnit != null)
-            {
-                adapter.SeedCharacterId(currentUnit.UniqueId);
-            }
-
-            Main.Logger.Log(Localization.Get("AbilityPanelResize.Log.HandlesAdded"));
         }
 
         private static void CreateHandle(
@@ -112,8 +97,6 @@ namespace AbilityPanelResize
             Image image = handleGO.AddComponent<Image>();
             image.color = new Color(0f, 0f, 0f, 0f);
             image.raycastTarget = true;
-
-            handleRect.SetAsLastSibling();
 
             PanelResizeHandle handle = handleGO.AddComponent<PanelResizeHandle>();
             handle.Target = root;

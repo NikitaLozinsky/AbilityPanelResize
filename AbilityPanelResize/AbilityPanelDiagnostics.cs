@@ -16,6 +16,10 @@ namespace AbilityPanelResize
     ///
     /// Инструмент уже дважды отличал причины, которые на экране выглядят
     /// одинаково, поэтому живёт в проекте, а не выпиливается после фикса.
+    ///
+    /// Пока тумблер выключен, компонент выключен целиком — так Unity вообще не
+    /// зовёт его <c>Update</c>, в отличие от выхода по проверке на каждом кадре.
+    /// Включает и выключает его <see cref="ResizeElementAdapter.ApplyLiveSettings"/>.
     /// </summary>
     public class AbilityPanelDiagnostics : MonoBehaviour
     {
@@ -23,6 +27,7 @@ namespace AbilityPanelResize
         public RectTransform Viewport;
         public RectTransform Content;
         public HeaderInsetTracker Tracker;
+        public ResizeElementAdapter Adapter;
 
         /// Как именно нашлась шапка (или почему не нашлась) — пишем словами.
         public string HeaderSource = "?";
@@ -40,8 +45,6 @@ namespace AbilityPanelResize
 
         private void Update()
         {
-            // По умолчанию выключено: это отладочный инструмент, а не часть
-            // работы мода. Тумблер живёт в настройках UMM и действует сразу.
             if (Main.Settings == null || !Main.Settings.Diagnostics)
             {
                 return;
@@ -92,7 +95,7 @@ namespace AbilityPanelResize
         /// </summary>
         private void CheckPointerStuck()
         {
-            if (m_PointerProbeDone || Root == null)
+            if (m_PointerProbeDone || Root == null || Adapter == null)
             {
                 return;
             }
@@ -101,9 +104,12 @@ namespace AbilityPanelResize
             Vector2 mouse = Input.mousePosition;
             PanelResizeHandle stuck = null;
 
-            foreach (PanelResizeHandle handle in Root.GetComponentsInChildren<PanelResizeHandle>(includeInactive: true))
+            // Список хендлов берём у адаптера: GetComponentsInChildren создаёт
+            // массив на каждом вызове, а это путь на каждом кадре.
+            foreach (PanelResizeHandle handle in Adapter.Handles)
             {
-                if (handle.transform is RectTransform rect
+                if (handle != null
+                    && handle.transform is RectTransform rect
                     && !handle.PointerInside
                     && RectTransformUtility.RectangleContainsScreenPoint(rect, mouse, camera))
                 {
@@ -179,9 +185,15 @@ namespace AbilityPanelResize
                               + $"camera={(camera != null ? camera.name : "null (overlay)")}");
 
             report.AppendLine("хендлы:");
-            foreach (PanelResizeHandle handle in Root.GetComponentsInChildren<PanelResizeHandle>(includeInactive: true))
+            if (Adapter != null)
             {
-                report.AppendLine("  " + DescribeHandle(handle, mouse, camera));
+                foreach (PanelResizeHandle handle in Adapter.Handles)
+                {
+                    if (handle != null)
+                    {
+                        report.AppendLine("  " + DescribeHandle(handle, mouse, camera));
+                    }
+                }
             }
 
             report.AppendLine("предки окна (снизу вверх):");

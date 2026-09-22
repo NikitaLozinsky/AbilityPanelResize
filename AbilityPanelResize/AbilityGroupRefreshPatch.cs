@@ -1,7 +1,6 @@
 using HarmonyLib;
 using Kingmaker.EntitySystem.Entities;
 using Kingmaker.UI.MVVM._PCView.ActionBar;
-using UnityEngine;
 
 namespace AbilityPanelResize
 {
@@ -13,6 +12,11 @@ namespace AbilityPanelResize
     /// Слоты здесь действительно могут быть новыми: <c>DrawSlots</c>
     /// дозаказывает их у <c>WidgetFactory</c>, а у виджета из пула флаг
     /// <c>maskable</c> снова префабный.
+    ///
+    /// Событие частое (в бою — по нескольку раз в секунду), поэтому «наша ли
+    /// это панель» проверяется одним <c>GetComponent</c>: адаптер висит только
+    /// на построенной панели способностей. Ни поиска ребёнка по имени, ни
+    /// чтения приватного поля с типом группы здесь больше нет.
     /// </summary>
     [HarmonyPatch(typeof(ActionBarGroupPCView), "SetGroup")]
     public static class ActionBarGroupPCView_SetGroup_Patch
@@ -20,26 +24,19 @@ namespace AbilityPanelResize
         [HarmonyPostfix]
         public static void Postfix(ActionBarGroupPCView __instance)
         {
-            if (!ActionBarGroupAccess.IsAbilityGroup(__instance))
+            ResizeElementAdapter adapter = __instance.GetComponent<ResizeElementAdapter>();
+            if (adapter == null || !adapter.IsBuilt)
             {
                 return;
             }
 
-            RectTransform root = __instance.transform as RectTransform;
-            if (root == null || root.Find(ModNames.Viewport) == null)
-            {
-                return;
-            }
-
-            SlotClipping.EnableForAbilityGroup(__instance);
+            SlotClipping.Enable(adapter.Content);
 
             UnitEntityData unit = ActionBarGroupAccess.GetViewModel(__instance)?.SelectedUnit.Value;
-            if (unit == null)
+            if (unit != null)
             {
-                return;
+                adapter.ApplyCharacterSize(unit.UniqueId);
             }
-
-            root.GetComponent<ResizeElementAdapter>()?.ApplyCharacterSize(unit.UniqueId);
         }
     }
 }

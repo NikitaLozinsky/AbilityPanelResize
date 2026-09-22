@@ -6,7 +6,6 @@ namespace AbilityPanelResize
 
         public const string Viewport = Prefix + "Viewport";
         public const string Content = Prefix + "Content";
-        public const string ContentPath = Viewport + "/" + Content;
 
         public const string ScrollbarHolder = Prefix + "ScrollbarHolder";
         public const string Scrollbar = Prefix + "Scrollbar";

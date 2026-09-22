@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Kingmaker.UI;
 using Kingmaker.UI.MVVM._PCView.ActionBar;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,6 +9,13 @@ namespace AbilityPanelResize
     /// Мозг пропатченной панели: единственное место, которое меняет её размер.
     /// Хендлы только сообщают, какой размер хочет мышь, — компенсацию позиции,
     /// сохранение и применение настроек делает этот компонент.
+    ///
+    /// Он же — единственный признак «эта панель наша». Раньше каждый патч
+    /// отвечал на этот вопрос сам, ища ребёнка по имени
+    /// (<c>root.Find("AbilityPanelResize_Viewport")</c>), и делал это на каждой
+    /// перерисовке группы. Теперь достаточно <c>GetComponent</c>: адаптер висит
+    /// только на построенной панели способностей, а ссылки на её части держит
+    /// у себя, найденные один раз при постройке.
     /// </summary>
     public class ResizeElementAdapter : MonoBehaviour
     {
@@ -28,10 +34,13 @@ namespace AbilityPanelResize
 
         private RectTransform m_Rect;
         private ActionBarGroupPCView m_GroupView;
+
         private ScrollRect m_ScrollRect;
+        private RectTransform m_Content;
         private GridLayoutGroup m_Grid;
-        private HeaderInsetTracker m_HeaderTracker;
         private Mask m_Mask;
+        private HeaderInsetTracker m_HeaderTracker;
+        private AbilityPanelDiagnostics m_Diagnostics;
 
         private readonly List<PanelResizeHandle> m_Handles = new List<PanelResizeHandle>();
         private GameObject m_ScrollbarHolder;
@@ -43,48 +52,34 @@ namespace AbilityPanelResize
 
         private float? m_InitialCenterX;
 
+        /// Сетка иконок. Нужна патчам, которые возвращают слотам обрезку.
+        public RectTransform Content => m_Content;
+
+        /// Панель достроена до конца. До этого момента на неё нельзя опираться:
+        /// компонент появляется в самом начале постройки, части — по ходу.
+        public bool IsBuilt => m_Content != null;
+
+        public IReadOnlyList<PanelResizeHandle> Handles => m_Handles;
+
         private RectTransform Rect => m_Rect != null ? m_Rect : (m_Rect = GetComponent<RectTransform>());
 
-        private ScrollRect Scroll => m_ScrollRect != null ? m_ScrollRect : (m_ScrollRect = GetComponent<ScrollRect>());
-
-        private GridLayoutGroup Grid
-        {
-            get
-            {
-                if (m_Grid == null)
-                {
-                    m_Grid = transform.Find(ModNames.ContentPath)?.GetComponent<GridLayoutGroup>();
-                }
-
-                return m_Grid;
-            }
-        }
-
-        private Mask Mask
-        {
-            get
-            {
-                if (m_Mask == null)
-                {
-                    m_Mask = transform.Find(ModNames.Viewport)?.GetComponent<Mask>();
-                }
-
-                return m_Mask;
-            }
-        }
-
         /// <summary>
-        /// Достаёт адаптер панели, создавая его при необходимости. Оба патча на
-        /// <c>Initialize</c> зовут этот метод, а порядок их выполнения Harmony
-        /// не гарантирует — поэтому метод обязан быть идемпотентным.
+        /// Достаёт адаптер панели, создавая его при необходимости.
         /// </summary>
-        public static ResizeElementAdapter Ensure(GameObject panel)
+        public static ResizeElementAdapter Ensure(ActionBarGroupPCView view)
         {
-            ResizeElementAdapter adapter = panel.GetComponent<ResizeElementAdapter>();
+            ResizeElementAdapter adapter = view.GetComponent<ResizeElementAdapter>();
             if (adapter == null)
             {
-                adapter = panel.AddComponent<ResizeElementAdapter>();
+                adapter = view.gameObject.AddComponent<ResizeElementAdapter>();
             }
+
+            adapter.m_GroupView = view;
+
+            // Потолки размера считаются от холста, а первый размер панели
+            // выставляется сразу же при постройке — значит холст надо померить
+            // раньше, чем что-то зависящее от него.
+            adapter.ReportCanvasSize();
 
             if (!s_Instances.Contains(adapter))
             {
@@ -92,6 +87,29 @@ namespace AbilityPanelResize
             }
 
             return adapter;
+        }
+
+        /// <summary>
+        /// Последний шаг постройки: разово запоминаем всё, что дальше
+        /// понадобится в работе, чтобы не искать это заново на каждой
+        /// перерисовке.
+        /// </summary>
+        public void CacheParts(RectTransform viewport, RectTransform content)
+        {
+            m_ScrollRect = GetComponent<ScrollRect>();
+            m_Grid = content != null ? content.GetComponent<GridLayoutGroup>() : null;
+            m_Mask = viewport != null ? viewport.GetComponent<Mask>() : null;
+            m_HeaderTracker = GetComponent<HeaderInsetTracker>();
+            m_Diagnostics = GetComponent<AbilityPanelDiagnostics>();
+
+            if (m_Diagnostics != null)
+            {
+                m_Diagnostics.enabled = Main.Settings != null && Main.Settings.Diagnostics;
+            }
+
+            // Присваивается последним: именно по нему остальной код понимает,
+            // что панель достроена.
+            m_Content = content;
         }
 
         public static void ApplyLiveSettingsToAll()
@@ -117,21 +135,28 @@ namespace AbilityPanelResize
                 return;
             }
 
-            if (Scroll != null)
+            if (m_ScrollRect != null)
             {
-                Scroll.scrollSensitivity = settings.ScrollSensitivity;
+                m_ScrollRect.scrollSensitivity = settings.ScrollSensitivity;
             }
 
-            if (Grid != null)
+            if (m_Grid != null)
             {
-                Grid.childAlignment = settings.CenterIcons ? TextAnchor.UpperCenter : TextAnchor.UpperLeft;
+                m_Grid.childAlignment = settings.CenterIcons ? TextAnchor.UpperCenter : TextAnchor.UpperLeft;
             }
 
             // Mask умеет включаться и выключаться на лету: при выключении он сам
             // возвращает детям их обычный материал.
-            if (Mask != null)
+            if (m_Mask != null)
             {
-                Mask.enabled = settings.StencilMask;
+                m_Mask.enabled = settings.StencilMask;
+            }
+
+            // Выключенный компонент не получает Update вовсе — это дешевле, чем
+            // выходить из него по проверке на каждом кадре.
+            if (m_Diagnostics != null)
+            {
+                m_Diagnostics.enabled = settings.Diagnostics;
             }
 
             foreach (PanelResizeHandle handle in m_Handles)
@@ -142,26 +167,34 @@ namespace AbilityPanelResize
                 }
             }
 
+            // Разрешение могли сменить прямо в сессии, а потолки размера
+            // считаются от холста.
+            ReportCanvasSize();
             SetSizeDelta(ResizeLimits.Clamp(Rect.sizeDelta));
         }
 
         public void BeginResize()
         {
-            if (Scroll != null)
+            if (m_ScrollRect != null)
             {
-                Scroll.enabled = false;
+                m_ScrollRect.enabled = false;
             }
         }
 
-        public void EndResize()
+        /// <summary>
+        /// Конец работы с гранью. <paramref name="save"/> — было ли реальное
+        /// перетаскивание: клик по грани без движения тоже приводит сюда, и
+        /// писать из-за него файл настроек на диск незачем.
+        /// </summary>
+        public void EndResize(bool save)
         {
-            if (Scroll != null)
+            if (m_ScrollRect != null)
             {
-                Scroll.enabled = true;
+                m_ScrollRect.enabled = true;
             }
 
             Settings settings = Main.Settings;
-            if (settings == null || Main.ModEntry == null || !settings.RememberSize)
+            if (!save || settings == null || Main.ModEntry == null || !settings.RememberSize)
             {
                 return;
             }
@@ -194,21 +227,31 @@ namespace AbilityPanelResize
         /// панель развёрнута. У ванильных детей за это отвечает
         /// <c>m_TogglableChildren</c>, но лезть в чужой сериализованный список
         /// рискованнее, чем держать свой.
+        ///
+        /// Сюда приходят не только клики по ▼. Игра дёргает <c>SetVisible</c>
+        /// ещё и через кадр после каждой перерисовки группы — то есть в бою
+        /// регулярно, с тем же самым состоянием. Поэтому первым делом отсекаем
+        /// повторы: иначе на каждую перерисовку шли бы шесть <c>SetActive</c>
+        /// и новый цикл перепроверки шапки.
         /// </summary>
         public void SetPanelPartsActive(bool active)
         {
+            if (active == m_PartsActive)
+            {
+                return;
+            }
+
             // Хендлы — единственная часть окна, чьей активностью распоряжаемся
             // мы сами, и единственная, которая торчит наружу за его границу.
             // Если они погаснут не вовремя, на экране это выглядит как «окно на
             // месте, но грани не ловятся» — поэтому под диагностикой пишем в
             // лог и сам факт, и того, кто его вызвал.
-            if (active != m_PartsActive && Main.Settings != null && Main.Settings.Diagnostics)
+            if (Main.Settings != null && Main.Settings.Diagnostics)
             {
                 Main.Logger.Log($"=== AbilityPanelResize: части панели {(active ? "включены" : "ВЫКЛЮЧЕНЫ")} ===\n"
                                 + new System.Diagnostics.StackTrace(fNeedFileInfo: false));
             }
 
-            bool changed = active != m_PartsActive;
             m_PartsActive = active;
 
             foreach (PanelResizeHandle handle in m_Handles)
@@ -220,10 +263,10 @@ namespace AbilityPanelResize
 
                 handle.gameObject.SetActive(active);
 
-                // Хендлы обязаны лежать выше всего внутри окна. Порядок двух
-                // постфиксов на Initialize не определён, поэтому скроллбар мог
-                // родиться после них и оказаться сверху.
-                if (changed && active)
+                // Хендлы обязаны лежать выше всего внутри окна. Постройка их и
+                // так создаёт последними, но подменю вариантов способности на
+                // время своего открытия перекладывает себя в корень панели.
+                if (active)
                 {
                     handle.transform.SetAsLastSibling();
                 }
@@ -234,12 +277,17 @@ namespace AbilityPanelResize
                 m_ScrollbarHolder.SetActive(active);
             }
 
-            if (active)
+            if (!active)
             {
-                // Разворачивание — единственный момент, когда раскладка шапки
-                // могла поменяться незаметно для нас.
-                HeaderTracker()?.Remeasure();
+                return;
             }
+
+            // Разворачивание — единственный момент, когда раскладка шапки
+            // могла поменяться незаметно для нас. Заодно перемеряем холст:
+            // при постройке панель могла висеть на выключенной ветке, где
+            // мерить было нечего.
+            m_HeaderTracker?.Remeasure();
+            ReportCanvasSize();
         }
 
         public void SeedCharacterId(string characterId)
@@ -303,33 +351,36 @@ namespace AbilityPanelResize
 
         private void Update()
         {
-            // Порядок условий не случаен: чтение статического поля дешевле
-            // обращения к вводу, а курсор ресайза взведён считанные кадры.
-            if (CursorController.IsResizeCursor && Input.GetMouseButtonUp(0))
+            // Страховка от залипшего курсора: кнопку отпустили не над гранью, и
+            // события выхода хендл не получил. Трогаем только тот курсор,
+            // который взяли сами, — общий флаг может держать и боевой лог.
+            if (PanelResizeHandle.CursorHeld && Input.GetMouseButtonUp(0))
             {
-                CursorController.IsResizeCursor = false;
-                UnityEngine.Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
+                PanelResizeHandle.ReleaseCursor();
             }
         }
 
-        private HeaderInsetTracker HeaderTracker()
+        /// <summary>
+        /// Сообщает лимитам размер холста интерфейса.
+        ///
+        /// Ищем через <c>GetComponentsInParent(includeInactive: true)</c>, а не
+        /// через <c>GetComponentInParent</c>: последний пропускает выключенные
+        /// объекты, а в момент постройки панель вполне может висеть на
+        /// выключенной ветке.
+        /// </summary>
+        private void ReportCanvasSize()
         {
-            if (m_HeaderTracker == null)
+            Canvas[] canvases = GetComponentsInParent<Canvas>(includeInactive: true);
+            if (canvases == null || canvases.Length == 0)
             {
-                m_HeaderTracker = GetComponent<HeaderInsetTracker>();
+                return;
             }
 
-            return m_HeaderTracker;
-        }
-
-        private ActionBarGroupPCView GroupView()
-        {
-            if (m_GroupView == null)
+            Canvas root = canvases[0].rootCanvas;
+            if (root != null && root.transform is RectTransform canvasRect)
             {
-                m_GroupView = GetComponent<ActionBarGroupPCView>();
+                ResizeLimits.ReportCanvasSize(canvasRect.rect.size);
             }
-
-            return m_GroupView;
         }
 
         /// <summary>
@@ -340,15 +391,14 @@ namespace AbilityPanelResize
         /// </summary>
         private void RepositionToKeepBottomFixed()
         {
-            ActionBarGroupPCView view = GroupView();
-            if (view == null || !ActionBarGroupAccess.IsVisible(view))
+            if (m_GroupView == null || !ActionBarGroupAccess.IsVisible(m_GroupView))
             {
                 return;
             }
 
             // 5f - не наша константа. Она из формулы самой игры, и там она тоже
             // ничем не обоснована.
-            float targetY = Rect.sizeDelta.y - 5f - ActionBarGroupAccess.GetVisiblePositionDelta(view);
+            float targetY = Rect.sizeDelta.y - 5f - ActionBarGroupAccess.GetVisiblePositionDelta(m_GroupView);
 
             Vector2 anchoredPosition = Rect.anchoredPosition;
             anchoredPosition.y = targetY;

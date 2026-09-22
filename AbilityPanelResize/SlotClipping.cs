@@ -1,4 +1,4 @@
-using Kingmaker.UI.MVVM._PCView.ActionBar;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -21,16 +21,35 @@ namespace AbilityPanelResize
     public static class SlotClipping
     {
         /// <summary>
-        /// Поднимает флаг у всей графики слота. Вызывается часто (при каждом
-        /// перерисовывании группы и развороте панели), поэтому делает работу
-        /// только там, где флаг реально сброшен: у уже обработанных слотов это
-        /// просто обход списка без единой записи.
+        /// Обход сетки идёт часто — на каждой перерисовке группы и на каждом
+        /// развороте панели, то есть в бою по нескольку раз в секунду. Версия
+        /// <c>GetComponentsInChildren</c>, пишущая в готовый список, не создаёт
+        /// мусора; общий список для этого и держим. За собой он чистится сразу:
+        /// иначе между вызовами в нём лежали бы ссылки на уже мёртвые слоты.
         /// </summary>
-        public static void Enable(Transform slot)
+        private static readonly List<MaskableGraphic> s_Buffer = new List<MaskableGraphic>();
+
+        /// <summary>
+        /// Поднимает флаг у всей графики сетки. Реальная работа делается только
+        /// там, где флаг сброшен: у уже обработанных слотов это просто проход
+        /// по списку без единой записи.
+        ///
+        /// Слоты действительно бывают новыми: <c>DrawSlots</c> дозаказывает их
+        /// у <c>WidgetFactory</c>, а у свежего виджета флаг снова префабный.
+        /// </summary>
+        public static void Enable(Transform content)
         {
-            foreach (MaskableGraphic graphic in slot.GetComponentsInChildren<MaskableGraphic>(includeInactive: true))
+            if (content == null)
             {
-                if (graphic.maskable)
+                return;
+            }
+
+            content.GetComponentsInChildren(true, s_Buffer);
+
+            for (int i = 0; i < s_Buffer.Count; i++)
+            {
+                MaskableGraphic graphic = s_Buffer[i];
+                if (graphic == null || graphic.maskable)
                 {
                     continue;
                 }
@@ -43,32 +62,8 @@ namespace AbilityPanelResize
                 // отбраковка того, что уехало за пределы окна целиком.
                 graphic.RecalculateClipping();
             }
-        }
 
-        public static void EnableAll(Transform content)
-        {
-            for (int i = 0; i < content.childCount; i++)
-            {
-                Enable(content.GetChild(i));
-            }
-        }
-
-        /// <summary>
-        /// Обвязка для патчей: отсекает не-Ability группы и непропатченные
-        /// панели, находит наш контент.
-        /// </summary>
-        public static void EnableForAbilityGroup(ActionBarGroupPCView view)
-        {
-            if (!ActionBarGroupAccess.IsAbilityGroup(view))
-            {
-                return;
-            }
-
-            Transform content = (view.transform as RectTransform)?.Find(ModNames.ContentPath);
-            if (content != null)
-            {
-                EnableAll(content);
-            }
+            s_Buffer.Clear();
         }
     }
 }

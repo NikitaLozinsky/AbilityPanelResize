@@ -1,3 +1,4 @@
+using Kingmaker;
 using Kingmaker.Blueprints.Root;
 using Kingmaker.UI;
 using Kingmaker.UI.AbilityTarget;
@@ -10,6 +11,30 @@ namespace AbilityPanelResize
         IPointerDownHandler, IPointerUpHandler, IDragHandler,
         IPointerEnterHandler, IPointerExitHandler
     {
+        /// <summary>
+        /// Кто из хендлов сейчас держит курсор ресайза.
+        ///
+        /// Сам флаг <c>CursorController.IsResizeCursor</c> общий на всю игру, и
+        /// взводит его не только наш мод — тем же механизмом пользуется рамка
+        /// боевого лога. Поэтому снимать флаг можно только тому, кто его
+        /// поставил: иначе, проведя мышью над нашей гранью во время чужого
+        /// перетаскивания, мы сбросили бы чужой курсор.
+        ///
+        /// Ссылка живёт не дольше самого хендла: <see cref="OnDisable"/>
+        /// отпускает её и при сворачивании панели, и при её уничтожении.
+        /// </summary>
+        private static PanelResizeHandle s_CursorOwner;
+
+        public static bool CursorHeld => s_CursorOwner != null;
+
+        public static void ReleaseCursor()
+        {
+            if (s_CursorOwner != null)
+            {
+                s_CursorOwner.HideCursor();
+            }
+        }
+
         public RectTransform Target;
 
         // Мерить линейкой, которую сам же и двигаешь, — способ узнать не размер, а собственную нервозность.
@@ -32,7 +57,14 @@ namespace AbilityPanelResize
         private const byte AlphaThreshold = 16;
 
         private RectTransform m_Rect;
-        private Vector2? m_HotSpot;
+
+        /// Точка курсора считается по картинке, а картинка у одного и того же
+        /// типа курсора не одна: игра отдаёт разные текстуры в зависимости от
+        /// режима курсора и высоты экрана (64/96/128 px). Поэтому кэш помнит,
+        /// для какой именно текстуры он посчитан.
+        private Texture2D m_HotSpotTexture;
+        private Vector2 m_HotSpot;
+
         private Vector2 m_OriginalSize;
         private Vector2 m_OriginalLocalPointerPosition;
         private bool m_IsDrag;
@@ -58,7 +90,10 @@ namespace AbilityPanelResize
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 Reference, data.position, data.pressEventCamera, out m_OriginalLocalPointerPosition);
 
-            Adapter?.BeginResize();
+            if (Adapter != null)
+            {
+                Adapter.BeginResize();
+            }
         }
 
         public void OnDrag(PointerEventData data)
@@ -92,15 +127,19 @@ namespace AbilityPanelResize
 
         public void OnPointerUp(PointerEventData data)
         {
-            Diagnose(m_IsDrag ? $"конец перетаскивания, размер {Target.sizeDelta}" : "отпускание без перетаскивания");
+            bool dragged = m_IsDrag;
+            Diagnose(dragged ? $"конец перетаскивания, размер {Target.sizeDelta}" : "отпускание без перетаскивания");
 
-            if (m_IsDrag)
+            if (dragged)
             {
                 m_IsDrag = false;
                 HideCursor();
             }
 
-            Adapter?.EndResize();
+            if (Adapter != null)
+            {
+                Adapter.EndResize(dragged);
+            }
         }
 
         public void OnPointerEnter(PointerEventData data)
@@ -131,27 +170,56 @@ namespace AbilityPanelResize
             }
         }
 
+        /// <summary>
+        /// Хендл могли выключить прямо посреди перетаскивания: панель
+        /// сворачивается по клику ▼ и по Esc, и в этот момент объект гаснет, а
+        /// события отпускания кнопки он уже не получит.
+        ///
+        /// Незакрытое перетаскивание оставляло бы за собой две неприятности:
+        /// взведённый курсор ресайза на всю игру и выключенный <c>ScrollRect</c> —
+        /// то есть панель, которая до следующего перезахода не прокручивается.
+        /// </summary>
         private void OnDisable()
         {
-            // Выключенный объект события выхода уже не получит, а флаг иначе
-            // залипнет во включённом состоянии до следующего входа.
             m_PointerInside = false;
+
+            if (m_IsDrag)
+            {
+                m_IsDrag = false;
+
+                // Проверка через оператор Unity, а не ?.: объект мог быть уже
+                // уничтожен, и тогда ссылка не null, но обращаться по ней нельзя.
+                if (Adapter != null)
+                {
+                    Adapter.EndResize(save: true);
+                }
+            }
+
+            HideCursor();
         }
 
         private void ShowCursor()
         {
+            if (s_CursorOwner == this)
+            {
+                return;
+            }
+
             // Флаг общий на всю игру: его взводит и родной ResizePanel боевого
-            // лога. Если он завис от чужого окна, наш курсор молча не
-            // выставится — под диагностикой говорим об этом вслух.
+            // лога. Если он занят чужим окном, наш курсор молча не выставится —
+            // под диагностикой говорим об этом вслух.
             if (CursorController.IsResizeCursor)
             {
                 Diagnose("курсор ресайза НЕ выставлен: IsResizeCursor уже взведён");
                 return;
             }
 
+            s_CursorOwner = this;
             CursorController.IsResizeCursor = true;
-            Texture2D texture = BlueprintRoot.Instance.Cursors.GetCursorTexture(CursorType);
+
+            Texture2D texture = CursorTexture(CursorType);
             ApplyCursor(texture);
+
             // Cursor.visible == false означает, что игра спрятала системный
             // курсор и рисует свой: PCCursor.SetActive делает ровно это. Тогда
             // наша точка крепления ни на что не влияет — он цепляется за мышь
@@ -162,6 +230,87 @@ namespace AbilityPanelResize
                 : "курсор ресайза выставлен, но текстуры нет");
         }
 
+        private void HideCursor()
+        {
+            if (s_CursorOwner != this)
+            {
+                return;
+            }
+
+            s_CursorOwner = null;
+            CursorController.IsResizeCursor = false;
+
+            // Обычный курсор игры показывает левым верхним углом, а не
+            // серединой — возвращаем его с точкой (0,0), как делает она сама.
+            //
+            // Ставим именно её текстуру, а не null: null — это системная стрелка
+            // Windows. Игра свой курсор обратно не перерисует, пока мышь не
+            // наведут на что-нибудь новое, а уйти с грани можно и внутрь окна,
+            // где наводиться не на что.
+            ApplyCursor(CursorTexture(CursorRoot.CursorType.DefaultCursor), Vector2.zero);
+
+            Diagnose("курсор ресайза снят");
+        }
+
+        private static Texture2D CursorTexture(CursorRoot.CursorType type)
+        {
+            CursorRoot cursors = BlueprintRoot.Instance != null ? BlueprintRoot.Instance.Cursors : null;
+            return cursors != null ? cursors.GetCursorTexture(type) : null;
+        }
+
+        /// <summary>
+        /// Режим курсора берём у игры: в её настройках есть «только программный
+        /// курсор», и в этом режиме она рисует курсоры иначе (и текстуры отдаёт
+        /// другие — 64/96/128 px по высоте экрана). Выставить в таком режиме
+        /// аппаратный курсор — значит не выставить ничего.
+        /// </summary>
+        private static CursorMode Mode()
+        {
+            try
+            {
+                return Game.Instance.UISettingsManager.IsOnlySoftwareMode
+                    ? CursorMode.ForceSoftware
+                    : CursorMode.Auto;
+            }
+            catch (System.Exception)
+            {
+                return CursorMode.Auto;
+            }
+        }
+
+        /// <summary>
+        /// Рисунок курсора живёт в двух местах сразу, и менять надо оба.
+        ///
+        /// Обычно курсор системный, и его хватает. Но в пошаговом бою (а ещё при
+        /// прицеливании и в тактическом бою) игра включает <c>PCCursor</c> —
+        /// собственный курсор, нарисованный элементом интерфейса, — и первым же
+        /// делом гасит системный: <c>PCCursor.SetActive</c> выставляет
+        /// <c>Cursor.visible = !active</c>. Отсюда и был симптом «вне боя
+        /// стрелка есть, в пошаговом нет»: мы перекрашивали курсор, которого на
+        /// экране в этот момент не было.
+        ///
+        /// Трогаем ровно подложку курсора (<c>PCCursor.SetCursor</c>) и ничего
+        /// больше. Через <c>CursorController</c> идти нельзя: его
+        /// <c>SetCustomCursor</c> гасит иконку способности, а <c>ClearCursor</c>
+        /// сбрасывает режим прицеливания — этим уже обжигались.
+        /// </summary>
+        private void ApplyCursor(Texture2D texture, Vector2? hotSpot = null)
+        {
+            if (texture == null)
+            {
+                return;
+            }
+
+            Vector2 point = hotSpot ?? HotSpotOf(texture);
+            UnityEngine.Cursor.SetCursor(texture, point, Mode());
+
+            PCCursor pcCursor = PCCursor.Instance;
+            if (pcCursor != null)
+            {
+                pcCursor.SetCursor(texture, point);
+            }
+        }
+
         /// <summary>
         /// Активная точка курсора — та, которой он «показывает».
         ///
@@ -170,13 +319,11 @@ namespace AbilityPanelResize
         /// у них показывает середина.
         ///
         /// Геометрический центр текстуры на эту роль не годится: рисунок внутри
-        /// текстуры 64×64 лежит не по центру, и стрелка вставала правее и ниже
-        /// мыши — на глаз это выглядело так, будто смещена сама зона захвата.
-        /// Поэтому середину ищем по самому рисунку — по границам непрозрачных
-        /// пикселей. Текстуры курсоров читаемы по определению: <c>SetCursor</c>
-        /// иначе бы их не принял.
-        ///
-        /// Считается один раз на хендл: тип курсора у него не меняется.
+        /// текстуры лежит не по центру, и стрелка вставала правее и ниже мыши —
+        /// на глаз это выглядело так, будто смещена сама зона захвата. Поэтому
+        /// середину ищем по самому рисунку — по границам непрозрачных пикселей.
+        /// Текстуры курсоров читаемы по определению: <c>SetCursor</c> иначе бы
+        /// их не принял.
         /// </summary>
         private Vector2 HotSpotOf(Texture2D texture)
         {
@@ -185,12 +332,13 @@ namespace AbilityPanelResize
                 return Vector2.zero;
             }
 
-            if (m_HotSpot == null)
+            if (m_HotSpotTexture != texture)
             {
+                m_HotSpotTexture = texture;
                 m_HotSpot = MeasureHotSpot(texture);
             }
 
-            return m_HotSpot.Value;
+            return m_HotSpot;
         }
 
         private Vector2 MeasureHotSpot(Texture2D texture)
@@ -243,63 +391,6 @@ namespace AbilityPanelResize
 
             Diagnose($"рисунок курсора занимает x {minX}..{maxX}, y {minY}..{maxY} (снизу)");
             return new Vector2(centerX, centerY);
-        }
-
-        /// <summary>
-        /// Рисунок курсора живёт в двух местах сразу, и менять надо оба.
-        ///
-        /// Обычно курсор системный, и его хватает. Но в пошаговом бою (а ещё при
-        /// прицеливании и в тактическом бою) игра включает <c>PCCursor</c> —
-        /// собственный курсор, нарисованный элементом интерфейса, — и первым же
-        /// делом гасит системный: <c>PCCursor.SetActive</c> выставляет
-        /// <c>Cursor.visible = !active</c>. Отсюда и был симптом «вне боя
-        /// стрелка есть, в пошаговом нет»: мы перекрашивали курсор, которого на
-        /// экране в этот момент не было.
-        ///
-        /// Трогаем ровно подложку курсора (<c>PCCursor.SetCursor</c>) и ничего
-        /// больше. Через <c>CursorController</c> идти нельзя: его
-        /// <c>SetCustomCursor</c> гасит иконку способности, а <c>ClearCursor</c>
-        /// сбрасывает режим прицеливания — этим уже обжигались.
-        /// </summary>
-        private void ApplyCursor(Texture2D texture)
-        {
-            UnityEngine.Cursor.SetCursor(texture, HotSpotOf(texture), CursorMode.Auto);
-
-            PCCursor pcCursor = PCCursor.Instance;
-            if (pcCursor != null && texture != null)
-            {
-                pcCursor.SetCursor(texture, HotSpotOf(texture));
-            }
-        }
-
-        private void HideCursor()
-        {
-            if (!CursorController.IsResizeCursor)
-            {
-                return;
-            }
-
-            CursorController.IsResizeCursor = false;
-            UnityEngine.Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
-
-            // Системный курсор снимается в ноль, а вот нарисованный игрой сам в
-            // исходное не вернётся: она перерисовывает его по событиям наведения,
-            // а не каждый кадр. Возвращаем обычную стрелку сами — дальше первое
-            // же движение мыши по полю поставит правильный курсор.
-            PCCursor pcCursor = PCCursor.Instance;
-            if (pcCursor != null)
-            {
-                Texture2D defaultTexture =
-                    BlueprintRoot.Instance.Cursors.GetCursorTexture(CursorRoot.CursorType.DefaultCursor);
-                if (defaultTexture != null)
-                {
-                    // Обычный курсор игры показывает левым верхним углом, а не
-                    // серединой — возвращаем его с той же точкой, что и она.
-                    pcCursor.SetCursor(defaultTexture, Vector2.zero);
-                }
-            }
-
-            Diagnose("курсор ресайза снят");
         }
     }
 }
