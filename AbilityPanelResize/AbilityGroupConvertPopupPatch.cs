@@ -11,8 +11,27 @@ namespace AbilityPanelResize
     /// </summary>
     public class ConvertPopupOriginalParent : MonoBehaviour
     {
-        public Transform Parent;
-        public int SiblingIndex;
+        private Transform m_Parent;
+        private int m_SiblingIndex;
+        private Vector2 m_AnchoredPosition;
+        private Vector2 m_SizeDelta;
+        private Vector3 m_LocalScale;
+        private bool m_Captured;
+
+        public void Capture(RectTransform popup)
+        {
+            if (m_Captured)
+            {
+                return;
+            }
+
+            m_Parent = popup.parent;
+            m_SiblingIndex = popup.GetSiblingIndex();
+            m_AnchoredPosition = popup.anchoredPosition;
+            m_SizeDelta = popup.sizeDelta;
+            m_LocalScale = popup.localScale;
+            m_Captured = true;
+        }
 
         /// <summary>
         /// Возвращает подменю на место. Отвечает <c>false</c>, если возвращать
@@ -20,13 +39,17 @@ namespace AbilityPanelResize
         /// </summary>
         public bool Restore()
         {
-            if (Parent == null)
+            RectTransform popup = transform as RectTransform;
+            if (!m_Captured || m_Parent == null || popup == null)
             {
                 return false;
             }
 
-            transform.SetParent(Parent, worldPositionStays: false);
-            transform.SetSiblingIndex(SiblingIndex);
+            popup.SetParent(m_Parent, worldPositionStays: false);
+            popup.SetSiblingIndex(m_SiblingIndex);
+            popup.localScale = m_LocalScale;
+            popup.anchoredPosition = m_AnchoredPosition;
+            popup.sizeDelta = m_SizeDelta;
             return true;
         }
     }
@@ -54,8 +77,7 @@ namespace AbilityPanelResize
 
             if (popup.parent != root)
             {
-                marker.Parent = popup.parent;
-                marker.SiblingIndex = popup.GetSiblingIndex();
+                marker.Capture(popup);
             }
 
             popup.SetParent(root, worldPositionStays: true);
