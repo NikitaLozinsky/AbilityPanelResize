@@ -25,6 +25,7 @@ namespace AbilityPanelResize
             modEntry.OnToggle = OnToggle;
             modEntry.OnGUI = OnGUI;
             modEntry.OnSaveGUI = OnSaveGUI;
+            modEntry.OnUpdate = OnUpdate;
 
             Logger.Log(Localization.Get("AbilityPanelResize.Log.Loaded"));
             return true;
@@ -56,6 +57,31 @@ namespace AbilityPanelResize
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Дамп состояния курсора по Ctrl+Alt+C.
+        ///
+        /// Хоткей висит здесь, а не в <see cref="AbilityPanelDiagnostics"/>,
+        /// потому что тот компонент живёт на самой панели: пока панель выключена
+        /// (а вне боя она чаще всего именно такая), Unity не зовёт его
+        /// <c>Update</c>, и дамп снимался бы только в бою — то есть ровно в
+        /// одном из двух состояний, которые и надо сравнить. UMM зовёт свой
+        /// <c>OnUpdate</c> независимо от игровых объектов.
+        /// </summary>
+        private static void OnUpdate(UnityModManager.ModEntry modEntry, float deltaTime)
+        {
+            if (Settings == null || !Settings.Diagnostics || !Input.GetKeyDown(KeyCode.C))
+            {
+                return;
+            }
+
+            bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+            bool alt = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+            if (ctrl && alt)
+            {
+                Logger.Log(CursorProbe.Build());
+            }
         }
 
         private static void OnGUI(UnityModManager.ModEntry modEntry)
@@ -109,6 +135,13 @@ namespace AbilityPanelResize
             float scrollSensitivity = Slider("AbilityPanelResize.Settings.ScrollSensitivity", Settings.ScrollSensitivity, 5f, 80f, 1f);
             float handleThickness = Slider("AbilityPanelResize.Settings.HandleThickness", Settings.HandleThickness, 6f, 40f, 1f);
             Hint("AbilityPanelResize.Settings.HandleThicknessHint");
+
+            GUILayout.Space(8f);
+            Section("AbilityPanelResize.Settings.Section.GameFixes");
+
+            Settings.SyncWorldSelection = GUILayout.Toggle(Settings.SyncWorldSelection,
+                Localization.Get("AbilityPanelResize.Settings.SyncWorldSelection"));
+            Hint("AbilityPanelResize.Settings.SyncWorldSelectionHint");
 
             GUILayout.Space(8f);
             Section("AbilityPanelResize.Settings.Section.Diagnostics");

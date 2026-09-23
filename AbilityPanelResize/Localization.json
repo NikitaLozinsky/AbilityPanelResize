@@ -134,6 +134,27 @@
       "enGB": "How far outside the panel border the resize grip reaches."
     },
     {
+      "Key": "AbilityPanelResize.Settings.Section.GameFixes",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.Section.GameFixes",
+      "ProcessTemplates": false,
+      "ruRU": "Исправления багов игры",
+      "enGB": "Game bug fixes"
+    },
+    {
+      "Key": "AbilityPanelResize.Settings.SyncWorldSelection",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.SyncWorldSelection",
+      "ProcessTemplates": false,
+      "ruRU": "Выбор героя моделькой действует и на окна (инвентарь, персонаж)",
+      "enGB": "Selecting a hero by their model also switches windows (inventory, character)"
+    },
+    {
+      "Key": "AbilityPanelResize.Settings.SyncWorldSelectionHint",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.SyncWorldSelectionHint",
+      "ProcessTemplates": false,
+      "ruRU": "В самой игре инвентарь и лист персонажа открываются на том герое, которого последним выбрали кликом по портрету: выбор кликом по модельке до них не доходит.",
+      "enGB": "In the unmodified game the inventory and character sheet open on whoever was last picked by portrait: selecting a hero by clicking their model never reaches those windows."
+    },
+    {
       "Key": "AbilityPanelResize.Settings.Section.Diagnostics",
       "SimpleName": "AbilityPanelResize.UnityModManager.Settings.Section.Diagnostics",
       "ProcessTemplates": false,
@@ -151,8 +172,8 @@
       "Key": "AbilityPanelResize.Settings.DiagnosticsHint",
       "SimpleName": "AbilityPanelResize.UnityModManager.Settings.DiagnosticsHint",
       "ProcessTemplates": false,
-      "ruRU": "Нужно только для разбора неполадок: размеры, обрезка, материалы. Дамп пишется сам при прокрутке под заголовок и по Ctrl+Alt+D.",
-      "enGB": "Only needed for troubleshooting: sizes, clipping, materials. The dump is written automatically when content scrolls under the title, and on Ctrl+Alt+D."
+      "ruRU": "Нужно только для разбора неполадок: размеры, обрезка, материалы. Дамп пишется сам при прокрутке под заголовок и по Ctrl+Alt+D; Ctrl+Alt+R — проба указателя, Ctrl+Alt+C — состояние курсора.",
+      "enGB": "Only needed for troubleshooting: sizes, clipping, materials. The dump is written automatically when content scrolls under the title, and on Ctrl+Alt+D; Ctrl+Alt+R probes the pointer, Ctrl+Alt+C dumps the cursor state."
     },
     {
       "Key": "AbilityPanelResize.Settings.ApplyHint",

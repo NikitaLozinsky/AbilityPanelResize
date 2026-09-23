@@ -27,6 +27,11 @@ namespace AbilityPanelResize
         /// Ctrl+Alt+D). Отладочное, по умолчанию выключено.
         public bool Diagnostics;
 
+        /// Баг самой игры, к размеру панели отношения не имеющий: выбор героя
+        /// кликом по модельке не доходит до окон инвентаря и листа персонажа.
+        /// Разбор — в SelectionSyncPatch.
+        public bool SyncWorldSelection = true;
+
         public float DefaultHeight = 400f;
         public float MaxWidth = 900f;
         public float MaxHeight = 800f;
