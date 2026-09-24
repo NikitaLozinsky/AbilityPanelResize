@@ -358,6 +358,11 @@ namespace AbilityPanelResize
             {
                 PanelResizeHandle.ReleaseCursor();
             }
+
+            // Прицеливание способностью может начаться и закончиться, пока
+            // мышь стоит на грани, — а курсор прицеливания рисует игра, и
+            // отдавать его ей надо вовремя.
+            PanelResizeHandle.SyncWithAbilityTargeting(m_Handles);
         }
 
         /// <summary>

@@ -1,7 +1,10 @@
+using System.Collections.Generic;
 using Kingmaker;
 using Kingmaker.Blueprints.Root;
+using Kingmaker.Controllers.Clicks.Handlers;
 using Kingmaker.UI;
 using Kingmaker.UI.AbilityTarget;
+using Kingmaker.UnitLogic.Abilities;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -27,11 +30,93 @@ namespace AbilityPanelResize
 
         public static bool CursorHeld => s_CursorOwner != null;
 
+        /// <summary>
+        /// Целится ли игрок способностью прямо сейчас.
+        ///
+        /// Мы следим за этим по той же причине, по которой сама игра проверяет
+        /// свой <c>m_CastMode</c> перед каждой сменой курсора: курсор
+        /// прицеливания — не одна текстура, а подложка плюс иконка способности
+        /// поверх неё, и перерисовывает его игра не каждый кадр, а по событию
+        /// начала прицеливания. Подменив у него подложку, вернуть всё как было
+        /// мы уже не сможем — вернуть может только сама игра.
+        ///
+        /// Признак берём у <c>ClickWithSelectedAbilityHandler</c>: его
+        /// <c>SelectedAbility</c> взводится и гаснет ровно теми же вызовами
+        /// (<c>SetAbility</c>/<c>DropAbility</c>), которые поднимают событие
+        /// начала и конца прицеливания, — то есть это и есть источник истины,
+        /// а не его отражение.
+        /// </summary>
+        private static bool AbilityTargeting => SelectedAbility() != null;
+
+        /// Прицеливание на предыдущем кадре: реагировать надо на смену
+        /// состояния, а не на само состояние.
+        private static bool s_WasTargeting;
+
         public static void ReleaseCursor()
         {
             if (s_CursorOwner != null)
             {
                 s_CursorOwner.HideCursor();
+            }
+        }
+
+        /// <summary>
+        /// Раз в кадр сверяет захват курсора с прицеливанием способностью.
+        /// Зовётся из <see cref="ResizeElementAdapter"/>: он на панели один, а
+        /// хендлов пять — пять лишних <c>Update</c> на кадр тут ни к чему.
+        ///
+        /// Случай, ради которого это нужно: мышь стоит на грани, курсор держим
+        /// мы, и в этот момент игрок берёт способность на прицел с клавиатуры.
+        /// Игра попробует нарисовать её курсор, но наш <c>IsResizeCursor</c>
+        /// этот вызов подавит — и без нас она больше не попытается. Поэтому
+        /// курсор мы отдаём сами, а когда прицеливание закончится — забираем
+        /// обратно, если мышь всё ещё на грани.
+        /// </summary>
+        public static void SyncWithAbilityTargeting(IReadOnlyList<PanelResizeHandle> handles)
+        {
+            bool targeting = AbilityTargeting;
+            if (targeting == s_WasTargeting)
+            {
+                return;
+            }
+
+            s_WasTargeting = targeting;
+
+            if (targeting)
+            {
+                ReleaseCursor();
+                return;
+            }
+
+            if (handles == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < handles.Count; i++)
+            {
+                PanelResizeHandle handle = handles[i];
+                if (handle != null && handle.isActiveAndEnabled && handle.m_PointerInside)
+                {
+                    handle.ShowCursor();
+                    return;
+                }
+            }
+        }
+
+        private static AbilityData SelectedAbility()
+        {
+            try
+            {
+                ClickWithSelectedAbilityHandler handler = Game.Instance != null
+                    ? Game.Instance.SelectedAbilityHandler
+                    : null;
+
+                return handler != null ? handler.SelectedAbility : null;
+            }
+            catch (System.Exception)
+            {
+                return null;
             }
         }
 
@@ -205,6 +290,15 @@ namespace AbilityPanelResize
                 return;
             }
 
+            // Курсор прицеливания способностью не трогаем вовсе: он не наш и
+            // возвращать его пришлось бы самим. Ровно так же ведёт себя игра —
+            // пока взведён её m_CastMode, она курсор не перерисовывает.
+            if (AbilityTargeting)
+            {
+                Diagnose("курсор ресайза НЕ выставлен: игрок целится способностью");
+                return;
+            }
+
             // Флаг общий на всю игру: его взводит и родной ResizePanel боевого
             // лога. Если он занят чужим окном, наш курсор молча не выставится —
             // под диагностикой говорим об этом вслух.
@@ -240,6 +334,12 @@ namespace AbilityPanelResize
             s_CursorOwner = null;
             CursorController.IsResizeCursor = false;
 
+            if (RestoreAbilityCursor())
+            {
+                Diagnose("курсор ресайза снят, курсор способности отрисован заново");
+                return;
+            }
+
             // Обычный курсор игры показывает левым верхним углом, а не
             // серединой — возвращаем его с точкой (0,0), как делает она сама.
             //
@@ -250,6 +350,39 @@ namespace AbilityPanelResize
             ApplyCursor(CursorTexture(CursorRoot.CursorType.DefaultCursor), Vector2.zero);
 
             Diagnose("курсор ресайза снят");
+        }
+
+        /// <summary>
+        /// Возвращает курсор прицеливания, если оно идёт прямо сейчас.
+        ///
+        /// Сюда попадают, только когда прицеливание началось уже после захвата
+        /// грани: при входе мы такой курсор не трогаем вовсе. Рисуем не сами —
+        /// зовём тот же публичный метод игры, которым она рисует этот курсор
+        /// при начале прицеливания, вместе с иконкой способности поверх
+        /// подложки. Через <c>SetCustomCursor</c>/<c>ClearCursor</c> идти
+        /// по-прежнему нельзя: они сбрасывают режим прицеливания.
+        /// </summary>
+        private static bool RestoreAbilityCursor()
+        {
+            AbilityData ability = SelectedAbility();
+            if (ability == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                Sprite icon = ability.MagicHackData != null
+                    ? ability.GetDeliverBlueprint().Icon
+                    : ability.Icon;
+
+                Game.Instance.CursorController.SetAbilityCursor(icon, forbidden: false, outOfRange: false);
+                return true;
+            }
+            catch (System.Exception)
+            {
+                return false;
+            }
         }
 
         private static Texture2D CursorTexture(CursorRoot.CursorType type)
