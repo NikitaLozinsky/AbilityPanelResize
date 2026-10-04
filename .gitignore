@@ -4,7 +4,7 @@
 
 # Claude Code: per-machine local settings (permissions with absolute paths).
 # CLAUDE.md and shared files in .claude/ are committed.
-.claude/settings.local.json
+# .claude/settings.local.json
 
 # Build output
 [Bb]in/
