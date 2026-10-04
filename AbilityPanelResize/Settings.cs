@@ -19,6 +19,10 @@ namespace AbilityPanelResize
         public bool RememberSize = true;
         public bool CenterIcons = true;
 
+        /// Выключатель всей функции. Применяется сразу: выключенную панель мод
+        /// разбирает обратно до вида игры (PanelSwitch).
+        public bool ResizeAbilityPanel = true;
+
         /// Трафаретная обрезка иконок по краю окна. Выключается на лету —
         /// страховка на случай, если на чужом железе/драйвере она подведёт.
         public bool StencilMask = true;

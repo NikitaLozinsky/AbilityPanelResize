@@ -25,25 +25,37 @@ namespace AbilityPanelResize
         [HarmonyPostfix]
         public static void Postfix(ActionBarGroupPCView __instance, ActionBarGroupType type)
         {
-            if (type != ActionBarGroupType.Ability)
+            if (type == ActionBarGroupType.Ability && PanelSwitch.IsEnabled)
             {
-                return;
+                Build(__instance);
             }
+        }
 
-            RectTransform root = __instance.transform as RectTransform;
-            if (root == null || __instance.GetComponent<ResizeElementAdapter>() != null)
+        /// <summary>
+        /// Строит панель. Зовётся из <c>Initialize</c> и на лету — когда панель
+        /// включают в настройках (<see cref="PanelSwitch"/>). Всё, что меняется у
+        /// ванильных объектов, сперва запоминается в
+        /// <see cref="PanelOriginalState"/>, чтобы панель можно было разобрать
+        /// обратно. Возвращает адаптер или null, если строить было нечего.
+        /// </summary>
+        public static ResizeElementAdapter Build(ActionBarGroupPCView view)
+        {
+            RectTransform root = view.transform as RectTransform;
+            if (root == null || view.GetComponent<ResizeElementAdapter>() != null)
             {
-                return;
+                return null;
             }
 
             Settings settings = Main.Settings;
-            ResizeElementAdapter adapter = ResizeElementAdapter.Ensure(__instance);
-            List<ActionBarBaseSlotPCView> slotsList = ActionBarGroupAccess.GetSlots(__instance);
+            PanelOriginalState original = PanelOriginalState.Capture(view, root);
+            ResizeElementAdapter adapter = ResizeElementAdapter.Ensure(view);
+            adapter.Original = original;
+            List<ActionBarBaseSlotPCView> slotsList = ActionBarGroupAccess.GetSlots(view);
 
             GridLayoutGroupWorkaround originalGrid = root.GetComponent<GridLayoutGroupWorkaround>();
             ContentSizeFitterExtended originalFitter = root.GetComponent<ContentSizeFitterExtended>();
 
-            RectTransform headerRect = FindHeader(root, __instance, out string headerSource);
+            RectTransform headerRect = FindHeader(root, view, out string headerSource);
             float headerHeight = headerRect != null
                 ? headerRect.rect.height
                 : (originalGrid != null ? originalGrid.padding.top : 0f);
@@ -147,7 +159,7 @@ namespace AbilityPanelResize
             diagnostics.Adapter = adapter;
             diagnostics.HeaderSource = headerSource;
 
-            ActionBarGroupAccess.SetSlotContainer(__instance, contentRect);
+            ActionBarGroupAccess.SetSlotContainer(view, contentRect);
 
             // Задник ловит клики, а не пропускает их насквозь. Раньше было
             // наоборот — так решали перехват кликов у соседей по интерфейсу. Но
@@ -180,6 +192,7 @@ namespace AbilityPanelResize
 
             Main.Logger.Log(Localization.Get("AbilityPanelResize.Log.ScrollAdded"));
             Main.Logger.Log(Localization.Get("AbilityPanelResize.Log.HandlesAdded"));
+            return adapter;
         }
 
         /// <summary>

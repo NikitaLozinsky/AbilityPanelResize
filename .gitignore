@@ -2,18 +2,12 @@
 .idea/
 *.sln.doc/
 
-# Claude config
-.claude/
-CLAUDE.md
+# Claude Code: per-machine local settings (permissions with absolute paths).
+# CLAUDE.md and shared files in .claude/ are committed.
+.claude/settings.local.json
 
 # Build output
 [Bb]in/
 [Oo]bj/
 *.user
 *.userprefs
-
-CLAUDE.md
-.claude/
-bin/
-obj/
-.idea/

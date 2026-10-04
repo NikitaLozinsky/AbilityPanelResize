@@ -52,6 +52,13 @@ namespace AbilityPanelResize
         private static readonly MethodInfo s_ViewModelGetter =
             AccessTools.PropertyGetter(typeof(ActionBarGroupPCView), "ViewModel");
 
+        private static readonly AccessTools.FieldRef<ActionBarGroupPCView, ActionBarGroupType> s_GroupType =
+            AccessTools.FieldRefAccess<ActionBarGroupPCView, ActionBarGroupType>("m_GroupType");
+
+        private static readonly Action<ActionBarGroupPCView> s_SetGroup =
+            AccessTools.MethodDelegate<Action<ActionBarGroupPCView>>(
+                AccessTools.Method(typeof(ActionBarGroupPCView), "SetGroup"));
+
         /// Развёрнута ли панель прямо сейчас.
         public static bool IsVisible(ActionBarGroupPCView view)
         {
@@ -69,10 +76,28 @@ namespace AbilityPanelResize
             return s_SlotsList(view);
         }
 
+        public static RectTransform GetSlotContainer(ActionBarGroupPCView view)
+        {
+            return s_SlotContainer(view);
+        }
+
         /// Куда игра будет парковать новые виджеты слотов.
         public static void SetSlotContainer(ActionBarGroupPCView view, RectTransform container)
         {
             s_SlotContainer(view) = container;
+        }
+
+        /// Тип группы, с которым игра её проинициализировала. У ещё не
+        /// проинициализированной вьюхи — None.
+        public static ActionBarGroupType GetGroupType(ActionBarGroupPCView view)
+        {
+            return s_GroupType(view);
+        }
+
+        /// Полная перерисовка группы — то, что игра делает при смене героя.
+        public static void Redraw(ActionBarGroupPCView view)
+        {
+            s_SetGroup(view);
         }
 
         public static Component GetGroupNameLabel(ActionBarGroupPCView view)

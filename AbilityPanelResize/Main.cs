@@ -14,6 +14,11 @@ namespace AbilityPanelResize
 
         private static Harmony s_Harmony;
 
+        /// Выключатель панели щёлкнули в OnGUI, а разбирать или строить её будем
+        /// в ближайшем OnUpdate: OnGUI зовётся по нескольку раз за кадр, и
+        /// перестраивать интерфейс игры посреди его отрисовки незачем.
+        private static bool s_PanelSwitchPending;
+
         public static bool Load(UnityModManager.ModEntry modEntry)
         {
             Logger = modEntry.Logger;
@@ -60,9 +65,10 @@ namespace AbilityPanelResize
         }
 
         /// <summary>
-        /// Дамп состояния курсора по Ctrl+Alt+C.
+        /// Дамп состояния курсора по Ctrl+Alt+C и устройства окон экшн-бара по
+        /// Ctrl+Alt+S.
         ///
-        /// Хоткей висит здесь, а не в <see cref="AbilityPanelDiagnostics"/>,
+        /// Хоткеи висят здесь, а не в <see cref="AbilityPanelDiagnostics"/>,
         /// потому что тот компонент живёт на самой панели: пока панель выключена
         /// (а вне боя она чаще всего именно такая), Unity не зовёт его
         /// <c>Update</c>, и дамп снимался бы только в бою — то есть ровно в
@@ -71,16 +77,39 @@ namespace AbilityPanelResize
         /// </summary>
         private static void OnUpdate(UnityModManager.ModEntry modEntry, float deltaTime)
         {
-            if (Settings == null || !Settings.Diagnostics || !Input.GetKeyDown(KeyCode.C))
+            if (s_PanelSwitchPending)
+            {
+                s_PanelSwitchPending = false;
+                PanelSwitch.ApplyAll();
+            }
+
+            if (Settings == null || !Settings.Diagnostics)
+            {
+                return;
+            }
+
+            bool cursorKey = Input.GetKeyDown(KeyCode.C);
+            bool structureKey = Input.GetKeyDown(KeyCode.S);
+            if (!cursorKey && !structureKey)
             {
                 return;
             }
 
             bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
             bool alt = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
-            if (ctrl && alt)
+            if (!ctrl || !alt)
+            {
+                return;
+            }
+
+            if (cursorKey)
             {
                 Logger.Log(CursorProbe.Build());
+            }
+
+            if (structureKey)
+            {
+                Logger.Log(PanelStructureProbe.Build());
             }
         }
 
@@ -96,6 +125,17 @@ namespace AbilityPanelResize
             GUILayout.Label(Localization.Get("AbilityPanelResize.Settings.Language", Localization.CurrentLocale));
             GUILayout.Space(8f);
 
+            bool resizeAbilityPanel = GUILayout.Toggle(Settings.ResizeAbilityPanel,
+                Localization.Get("AbilityPanelResize.Settings.ResizeAbilityPanel"));
+            Hint("AbilityPanelResize.Settings.ResizeAbilityPanelHint");
+
+            if (resizeAbilityPanel != Settings.ResizeAbilityPanel)
+            {
+                Settings.ResizeAbilityPanel = resizeAbilityPanel;
+                s_PanelSwitchPending = true;
+            }
+
+            GUILayout.Space(8f);
             Section("AbilityPanelResize.Settings.Section.Size");
 
             string savedSize = Settings.HasSavedSize

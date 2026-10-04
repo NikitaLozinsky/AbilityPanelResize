@@ -12,9 +12,12 @@ namespace AbilityPanelResize
     /// создаётся <c>ActionBarSlotVM</c>, который уходит в <c>AddDisposable</c>
     /// вьюхи и живёт там до её уничтожения, то есть копится всю сессию.
     ///
-    /// Вкладки Spell/Item патч не трогает: там пустые слоты реально нужны как
-    /// цели для перетаскивания. Отличаем по адаптеру — он есть только на
-    /// построенной панели способностей.
+    /// Целью перетаскивания пустышки не служат ни в одной вкладке: перетащить
+    /// что-то можно только на ячейку нижнего хотбара
+    /// (<c>ActionBarSlotPCView.OnEndDrag</c> ищет цель среди
+    /// <c>ActionBarKeybindSlotPCView</c>). Вкладки Spell/Item патч не трогает
+    /// просто потому, что мод их не строит. Отличаем по адаптеру — он есть
+    /// только на построенной панели способностей.
     /// </summary>
     [HarmonyPatch(typeof(ActionBarGroupPCView), "AddEmptySlots")]
     public static class ActionBarGroupPCView_AddEmptySlots_Patch

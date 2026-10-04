@@ -8,6 +8,20 @@
       "enGB": "Mod interface language: {0} (follows the game language)"
     },
     {
+      "Key": "AbilityPanelResize.Settings.ResizeAbilityPanel",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.ResizeAbilityPanel",
+      "ProcessTemplates": false,
+      "ruRU": "Растягивать и прокручивать панель способностей",
+      "enGB": "Make the ability panel resizable and scrollable"
+    },
+    {
+      "Key": "AbilityPanelResize.Settings.ResizeAbilityPanelHint",
+      "SimpleName": "AbilityPanelResize.UnityModManager.Settings.ResizeAbilityPanelHint",
+      "ProcessTemplates": false,
+      "ruRU": "Включается и выключается сразу, без перезагрузки. Выключенная панель возвращается к обычному виду игры.",
+      "enGB": "Applies immediately, no reload needed. When switched off, the panel goes back to the way the game shows it."
+    },
+    {
       "Key": "AbilityPanelResize.Settings.Section.Size",
       "SimpleName": "AbilityPanelResize.UnityModManager.Settings.Section.Size",
       "ProcessTemplates": false,
@@ -172,8 +186,8 @@
       "Key": "AbilityPanelResize.Settings.DiagnosticsHint",
       "SimpleName": "AbilityPanelResize.UnityModManager.Settings.DiagnosticsHint",
       "ProcessTemplates": false,
-      "ruRU": "Нужно только для разбора неполадок: размеры, обрезка, материалы. Дамп пишется сам при прокрутке под заголовок и по Ctrl+Alt+D; Ctrl+Alt+R — проба указателя, Ctrl+Alt+C — состояние курсора.",
-      "enGB": "Only needed for troubleshooting: sizes, clipping, materials. The dump is written automatically when content scrolls under the title, and on Ctrl+Alt+D; Ctrl+Alt+R probes the pointer, Ctrl+Alt+C dumps the cursor state."
+      "ruRU": "Нужно только для разбора неполадок: размеры, обрезка, материалы. Дамп пишется сам при прокрутке под заголовок и по Ctrl+Alt+D; Ctrl+Alt+R — проба указателя, Ctrl+Alt+C — состояние курсора, Ctrl+Alt+S — устройство окон экшн-бара.",
+      "enGB": "Only needed for troubleshooting: sizes, clipping, materials. The dump is written automatically when content scrolls under the title, and on Ctrl+Alt+D; Ctrl+Alt+R probes the pointer, Ctrl+Alt+C dumps the cursor state, Ctrl+Alt+S dumps the action bar window layout."
     },
     {
       "Key": "AbilityPanelResize.Settings.ApplyHint",
@@ -265,6 +279,13 @@
       "ProcessTemplates": false,
       "ruRU": "Хендлы ручного ресайза добавлены.",
       "enGB": "Manual resize handles added."
+    },
+    {
+      "Key": "AbilityPanelResize.Log.PanelRestored",
+      "SimpleName": "AbilityPanelResize.Log.PanelRestored",
+      "ProcessTemplates": false,
+      "ruRU": "Панель способностей возвращена к виду игры.",
+      "enGB": "The ability panel is back to the way the game shows it."
     },
     {
       "Key": "AbilityPanelResize.Log.GridPadding",

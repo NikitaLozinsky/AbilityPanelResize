@@ -52,6 +52,15 @@ namespace AbilityPanelResize
 
         private float? m_InitialCenterX;
 
+        private RectTransform m_Viewport;
+
+        /// Какой панель была до постройки — для разбора обратно (PanelSwitch).
+        public PanelOriginalState Original { get; set; }
+
+        public RectTransform Viewport => m_Viewport;
+
+        public GameObject ScrollbarHolder => m_ScrollbarHolder;
+
         /// Сетка иконок. Нужна патчам, которые возвращают слотам обрезку.
         public RectTransform Content => m_Content;
 
@@ -96,6 +105,7 @@ namespace AbilityPanelResize
         /// </summary>
         public void CacheParts(RectTransform viewport, RectTransform content)
         {
+            m_Viewport = viewport;
             m_ScrollRect = GetComponent<ScrollRect>();
             m_Grid = content != null ? content.GetComponent<GridLayoutGroup>() : null;
             m_Mask = viewport != null ? viewport.GetComponent<Mask>() : null;
@@ -110,6 +120,19 @@ namespace AbilityPanelResize
             // Присваивается последним: именно по нему остальной код понимает,
             // что панель достроена.
             m_Content = content;
+        }
+
+        /// <summary>
+        /// Первый шаг разбора панели: гасит наши части (хендл посреди
+        /// перетаскивания закроет его сам — см. <c>PanelResizeHandle.OnDisable</c>,
+        /// и курсор отпустит тоже) и снимает признак «построено». С этого
+        /// момента все патчи считают панель ванильной: перерисовка, которой
+        /// разбор заканчивается, уже добьёт список пустыми слотами, как в игре.
+        /// </summary>
+        public void Dismantle()
+        {
+            SetPanelPartsActive(false);
+            m_Content = null;
         }
 
         public static void ApplyLiveSettingsToAll()
